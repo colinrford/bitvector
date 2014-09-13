@@ -21,7 +21,14 @@
 *.i*86
 *.x86_64
 *.hex
-
+*.class
 eratosthenesBv
 atkinBv
 testBv
+
+
+# Eclipse BS
+.metadata/
+RemoteSystemsTempFiles/
+*.classpath
+*.project

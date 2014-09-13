@@ -6,11 +6,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
+using namespace std;
 #define BITSIZE 1    // Potentially useful
 #define SIZEOFBYTE 8 // Useful when converting between bits and bytes
 #define ONE 1        // tried to rid any hardcoding of 1's
 #define ZERO 0       // and zeros
-
 
 // My bitvector struct. Although supposedly most bitvectors are less than 
 // 30 bits, I found it convenient to include the number of bits within the 

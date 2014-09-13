@@ -84,12 +84,12 @@ void Bitvector::print_bv()
   for (unsigned i = 0; i < _bv -> num_bits; i++)
   {
     if (get(i)) // bit i is set to 1
-      printf("1");
+      cout << "1";
     else
-      printf("0");
+      cout << "0";
   }
   
-  printf("\n");
+  cout << endl;
 }
 
 void Bitvector::clear_bv()
@@ -102,5 +102,6 @@ void Bitvector::clear_bv()
 
 Bitvector::~Bitvector()
 {
+  free(_bv -> bitarray);
   delete _bv;
 }

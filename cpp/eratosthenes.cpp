@@ -22,7 +22,9 @@
  *         Otherwise, count the bits that have not been set 
  *         (bits that = 0) are the prime numbers between 0 and N.
  * 
- * NOTE: I have not benchmarked this C++ implementation.
+ * The C++ implementation of the sieve of eratosthenes is slightly 
+ * (.001 s) slower than the C implementation, when counting primes 
+ * from 0 - 45,000. Interesting, perhaps?
  *
  */
 
@@ -62,7 +64,7 @@ int main()
 
   delete bv;
 
-  printf("There are %d primes in the range 0 - %d\n", primecount, NUMBITS);
+  cout << "There are " << primecount << " primes in the range 0 - " << NUMBITS << endl;
 
   return 0;
 }
@@ -72,10 +74,10 @@ void printprime(int prime)
   static int numfound = 0;
 
   if (numfound % SIZEOFBYTE == 0)
-    printf("\n");
+    cout << endl;
 
   if (prime + ONE < NUMBITS)
-    printf("%d\t", prime);
+    cout << prime << '\t';
 
   numfound++;
 }

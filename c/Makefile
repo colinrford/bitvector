@@ -13,7 +13,7 @@ test: test.o bitvector.o
 	$(GCC) $(WER) $(C99) test.c bitvector.c -o testBv
 
 eratosthenes: eratosthenes.o
-	$(GCC) $(WER) $(C99) eratosthenes.c bitvector.c -o eratosthenesBv
+	$(GCC) $(WER) $(O3) $(C99) eratosthenes.c bitvector.c -o eratosthenesBv
 
 atkin: atkin.o
 	$(GCC) $(WER) $(O3) $(C99) atkin.c bitvector.c -o atkinBv $(LM)

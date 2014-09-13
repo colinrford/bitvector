@@ -14,7 +14,6 @@
 
 #include "bitvector.h"
 #include <string>
-#include <iostream>
 #define TRUE 1
 #define GET "get"
 #define SET "set"
@@ -27,70 +26,70 @@
 int main()
 {
   int num_bits, index;
-  std::string decision(10, ' ');
+  string decision(10, ' ');
 
-  printf("How many bits would you like to make your bitvector? (enter an integer from 1 to 1,000,000)\n");
+  cout << "How many bits would you like to make your bitvector? (enter an integer from 1 to 1,000,000)\n";
 
-  scanf("%d", &num_bits);
+  cin >> num_bits;
 
-  printf("Making bitvector of size %d.\n", num_bits);
+  cout << "Making bitvector of size " << num_bits << ".\n";
 
   Bitvector* bv = new Bitvector(num_bits);
 
-  printf("Bitvector created.\n");
+  cout << "Bitvector created.\n";
   
   while (TRUE)
   {
-    printf("Enter what you would like to do:\n[get] [set] [clear] [toggle] [length] [print] [quit]\n");
-    std::cin >> decision;
+    cout << "Enter what you would like to do:\n[get] [set] [clear] [toggle] [length] [print] [quit]\n";
+    cin >> decision;
     if (!decision.compare(GET))
     {
-      printf("Which bit would you like to get? Enter index of bit (0 to %d).\n", num_bits - ONE);
-      scanf("%d", &index);
+      cout << "Which bit would you like to get? Enter index of bit (0 to " << num_bits - ONE << ".\n";
+      cin >> index;
       if (index >= num_bits || index < ZERO)
-        printf("Number entered out of range.\n");
+        cout << "Number entered out of range.\n";
       else
-        printf("The bit at index %d is set to %d\n", index, bv -> get(index));
+        cout << "The bit at index " << index << " is set to " << bv -> get(index) << endl;
     }
     else if (!decision.compare(SET))
     {
-      printf("Which bit would you like to set? Enter index of bit (0 to %d).\n", num_bits - ONE);
-      scanf("%d", &index);
+      cout << "Which bit would you like to set? Enter index of bit (0 to " << num_bits - ONE << ").\n";
+      cin >> index;
       if (index >= num_bits || index < ZERO)
-        printf("Number entered out of range.\n");
+        cout << "Number entered out of range.\n";
       else
       {
         bv -> set(index);
-        printf("The bit at index %d has been set to %d.\n", index, bv -> get(index));
+        cout << "The bit at index " << index << "has been set to " << bv -> get(index) << ".\n";
       }
     }
     else if (!decision.compare(CLEAR))
     {
-      printf("Which bit would you like to clear? Enter index of bit (0 to %d).\n", num_bits - ONE);
-      scanf("%d", &index);
+      cout << "Which bit would you like to clear? Enter index of bit (0 to " << num_bits - ONE << ").\n";
+      cin >> index;
       if (index >= num_bits || index < ZERO)
-        printf("Number entered out of range.\n");
+        cout << "Number entered out of range.\n";
       else
       {
         bv -> clear(index);
-        printf("The bit at index %d has been cleared.\n", index);
+        cout << "The bit at index " << index << " has been cleared.\n";
       }
     }
     else if(!decision.compare(TOGGLE))
     {
-      printf("Which bit would you like to toggle? Enter index of bit (0 to %d).\n", num_bits - ONE);
-      scanf("%d", &index);
+      cout << "Which bit would you like to toggle? Enter index of bit (0 to " << num_bits - ONE << ").\n";
+      cin >> index;
       if (index >= num_bits || index < ZERO)
-        printf("Number entered out of range.\n");
+        cout << "Number entered out of range.\n";
       else
       {
         bv -> toggle(index);
-        printf("The bit at index %d has been toggled to %d.\n", index, bv -> get(index));
+        cout << "The bit at index " << index << " has been toggled to " << bv -> get(index) << ").\n";
       }
     }
     else if (!decision.compare(LENGTH))
     {
-      printf("This bitvector has %d bits.\n", bv -> length());
+      cout << "This bitvector has " << bv -> length() << " bits.\n";
     }
     else if (!decision.compare(PRINT))
     {
@@ -98,18 +97,17 @@ int main()
     }
     else if (!decision.compare(QUIT))
     {
-      printf("Quitting.\n");
+      cout << "Quitting.\n";
       break;
     }
     else
-      printf("Invalid input.\n");
-    //delete decision;
+      cout << "Invalid input.\n";
+    
   };
 
   delete bv;
-  //delete decision;
 
-  printf("Memory freed.\n");
+  cout << "Memory freed.\n";
 
   return 0;
 }

@@ -13,10 +13,10 @@ test: test.o bitvector.o
 	$(GCC) $(WER) test.cpp bitvector.cpp -o testBv
 
 eratosthenes: eratosthenes.o
-	$(GCC) $(WER) eratosthenes.cpp bitvector.cpp -o eratosthenesBv
+	$(GCC) $(WER) $(O3) eratosthenes.cpp bitvector.cpp -o eratosthenesBv
 
 atkin: atkin.o
-	$(GCC) $(WER) $(O3) $(C99) atkin.cpp bitvector.cpp -o atkinBv $(LM)
+	$(GCC) $(WER) $(O3) atkin.cpp bitvector.cpp -o atkinBv $(LM)
 
 tar: 
 	$(TAR) $(ZC) bitvector.tar.gz bitvector.cpp bitvector.h test.cpp eratosthenes.cpp atkin.cpp eratosthenes.txt atkin.txt Makefile

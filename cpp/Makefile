@@ -1,25 +1,22 @@
-GCC = g++
-C99 = -std=c99
-WER = -Werror -Wall -Wextra
-O2 = -O2
-O3 = -O3
-TAR = tar
-ZC = -zcvf
-LM = -lm
+CC = g++
+CFLAGS = -Wall -Wextra -Werror -O1
+LIBS = -lm
+
+.PHONY: all clean
 
 all: test eratosthenes atkin
 
-test: test.o bitvector.o
-	$(GCC) $(WER) test.cpp bitvector.cpp -o testBv
+test: test.cpp bitvector.cpp
+	$(CC) $(CFLAGS) -o $@ test.cpp bitvector.cpp
 
-eratosthenes: eratosthenes.o
-	$(GCC) $(WER) $(C99) eratosthenes.c bitvector.cpp -o eratosthenesBv
+eratosthenes: eratosthenes.cpp bitvector.cpp
+	$(CC) $(CFLAGS) -o $@ eratosthenes.cpp bitvector.cpp
 
-atkin: atkin.o
-	$(GCC) $(WER) $(O3) $(C99) atkin.c bitvector.cpp -o atkinBv $(LM)
-
-tar: 
-	$(TAR) $(ZC) bitvector.tar.gz bitvector.cpp bitvector.h test.c eratosthenes.c atkin.c eratosthenes.txt atkin.txt Makefile
+atkin: atkin.cpp bitvector.cpp
+	$(CC) $(CFLAGS) -o $@ atkin.cpp bitvector.cpp $(LIBS)
 
 clean:
-	rm -rf *o test eratosthenes atkin bitvector
+	# object files
+	rm -f *.o
+	# binary files
+	rm -f atkin bitvector eratosthenes test

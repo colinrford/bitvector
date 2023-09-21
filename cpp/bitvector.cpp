@@ -1,17 +1,17 @@
 /* Colin Ford
  *
- * This is my bitvector library. 
+ * This is my bitvector library.
  *
  * To keep from being redundant below:
  * index/SIZEOFBYTE = the index in the char array (a.k.a. the byte)
  * corresponding to the index specified (a.k.a. the bit)
- * Example: For char* with 4 chars, 
+ * Example: For char* with 4 chars,
  * 00100001 00111001 10110011 01010101
  * If we want to access the 16th bit (or index 15 in bitarray), then
  * we know it will be located in the char (or byte) at index 1.
  * index/SIZEOFBYTE = 1 (index = 15)
- * 
- * index % SIZEOFBYTE = the index in the char (byte) where the 
+ *
+ * index % SIZEOFBYTE = the index in the char (byte) where the
  * specified bit is located.
  * Example: Continuing from the above example, we are in byte 1,
  * 00111001
@@ -22,16 +22,16 @@
  *
  * ONE << (index % SIZEOFBYTE) this will left shift 1 a value of
  * (index % SIZEOFBYTE).
- * Example: Let (index % SIZEOFBYTE) = 5. Then ONE << 5 will left 
- * shift 1 to 10000 (00000001 to 00010000). 
+ * Example: Let (index % SIZEOFBYTE) = 5. Then ONE << 5 will left
+ * shift 1 to 10000 (00000001 to 00010000).
  *
  */
 
-#include "bitvector.h"
+#include "bitvector.hpp"
 
-Bitvector::Bitvector(int num_bits)
+bitvector::bitvector(unsigned int num_bits)
 {
-  _bv = new bitvector;
+  _bv = new Bitvector;
   _bv -> num_bits = num_bits;
 
   // Here we want to make sure to malloc the right amount of memory.
@@ -42,7 +42,7 @@ Bitvector::Bitvector(int num_bits)
   _bv -> bitarray = (unsigned char*) malloc(sizeof(char) * (num_bits + 7)/SIZEOFBYTE);
 }
 
-int Bitvector::get(int index)
+int bitvector::get(std::size_t index)
 {
   // And (&) the bit at corresponding index. This will return 0 or 1,
   // depending on whether not the bit at index is equal to 0 or 1
@@ -52,13 +52,13 @@ int Bitvector::get(int index)
     return ZERO;
 }
 
-void Bitvector::set(int index)
+void bitvector::set(std::size_t index)
 {
-  // Or (|) equals will set bit at index equal to 1. 
+  // Or (|) equals will set bit at index equal to 1.
   _bv -> bitarray[index/SIZEOFBYTE] |= ONE << (index % SIZEOFBYTE);
 }
 
-void Bitvector::clear(int index)
+void Bitvector::clear(std::size_t index)
 {
   // And (&) equals will clear bit at index to 0. The ~ will flip
   // each bit in the ONE << (index % SIZEOFBYTE) byte, so the
@@ -67,14 +67,14 @@ void Bitvector::clear(int index)
   _bv -> bitarray[index/SIZEOFBYTE] &= ~(ONE << (index % SIZEOFBYTE));
 }
 
-void Bitvector::toggle(int index)
+void Bitvector::toggle(std::size_t index)
 {
   // XOR (^) equals will set bit at index equal to 0 or 1, depending
   // on what the bit is currently set at (0 ^ 1 = 1; 1 ^ 1 = 0).
   _bv -> bitarray[index/SIZEOFBYTE] ^= ONE << (index % SIZEOFBYTE);
 }
 
-int Bitvector::length()
+std::size_t Bitvector::length()
 {
   return _bv -> num_bits;
 }
@@ -88,7 +88,7 @@ void Bitvector::print_bv()
     else
       printf("0");
   }
-  
+
   printf("\n");
 }
 

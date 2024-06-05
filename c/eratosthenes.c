@@ -47,23 +47,38 @@
  */
 
 #include "bitvector.h"
+#include <errno.h>
+#include <stdbool.h>
 #define FIRSTPRIME 2
 #define NUMBITS 45000
 
 int primecount;
 void printprime(int prime);
 
-int main()
+int main(int argc, char* argv[])
 {
   int i, prime, primecopy, num_bits;
   Bitvector* bv;
-
-  num_bits = NUMBITS;
+  
+  if (argc > 1)
+  {
+    errno = 0;
+    char* p = argv[1];
+    char* end;
+    const long i = strtol(p, &end, 10);
+ 
+    const bool range_error = errno == ERANGE;
+    printf("Extracted '%.*s', strtol returned %ld.", (int)(end-p), p, i);
+    num_bits = i;
+    if (range_error)
+      printf("\n --> Range error occurred.");
+  } else
+    num_bits = NUMBITS;
   bv = make_bv(num_bits + ONE);
   prime = FIRSTPRIME;
   primecount = 0;
 
-  for (i = 0; i < NUMBITS; i++)
+  for (i = 0; i < num_bits; i++)
     clear(bv, i);
 
   printprime(prime);
@@ -83,7 +98,7 @@ int main()
 
   free_bv(bv);
 
-  printf("There are %d primes in the range 0 - %d\n", primecount, NUMBITS);
+  printf("There are %d primes in the range 0 - %d\n", primecount, num_bits);
 
   return 0;
 }

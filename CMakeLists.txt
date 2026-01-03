@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.1.260103 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260103 LANGUAGES CXX)
 
 find_package(Git)
 if(GIT_FOUND)
@@ -40,17 +40,6 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
 )
 
-# Increase constexpr steps significantly for heavy compile-time computations
-set(CLANG_CONSTEXPR_STEPS 900000000)
-add_executable(eratosthenes examples/eratosthenes.cpp)
-target_compile_features(eratosthenes PRIVATE cxx_std_23)
-target_link_libraries(eratosthenes PRIVATE bitvector)
-target_compile_options(eratosthenes PRIVATE
-  "-fconstexpr-steps=${CLANG_CONSTEXPR_STEPS}"
-)
-add_executable(benchmark benchmarks/benchmark.cpp)
-target_compile_features(benchmark PRIVATE cxx_std_23)
-target_link_libraries(benchmark PRIVATE bitvector)
 
 # Sanitizer Options (all OFF by default for performance)
 option(LAM_ENABLE_ASAN "Enable AddressSanitizer" OFF)
@@ -91,28 +80,27 @@ target_sources(bitvector
 
 target_compile_features(bitvector PUBLIC cxx_std_23)
 
-add_executable(bench_compile_custom benchmarks/bench_compile_custom.cpp)
-target_link_libraries(bench_compile_custom PRIVATE bitvector)
-target_compile_features(bench_compile_custom PRIVATE cxx_std_23)
-target_compile_options(bench_compile_custom PRIVATE "-fconstexpr-steps=900000000")
-if(TEST_SIZE)
-  target_compile_definitions(bench_compile_custom PRIVATE TEST_SIZE=${TEST_SIZE})
-endif()
 
-add_executable(bench_compile_std benchmarks/bench_compile_std.cpp)
-target_compile_features(bench_compile_std PRIVATE cxx_std_23)
-target_compile_options(bench_compile_std PRIVATE "-fconstexpr-steps=900000000")
-if(TEST_SIZE)
-  target_compile_definitions(bench_compile_std PRIVATE TEST_SIZE=${TEST_SIZE})
-endif()
+# Installation Configuration
+include(GNUInstallDirs)
 
-add_executable(allocator_benchmark benchmarks/allocator_benchmark.cpp)
-target_compile_features(allocator_benchmark PRIVATE cxx_std_23)
-target_link_libraries(allocator_benchmark PRIVATE bitvector)
+# Library Installation
+install(TARGETS bitvector
+  EXPORT bitvectorTargets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  FILE_SET CXX_MODULES DESTINATION ${CMAKE_INSTALL_LIBDIR}/c++/v1
+)
 
-add_executable(parallel_sieve_benchmark benchmarks/parallel_sieve_benchmark.cpp)
-target_compile_features(parallel_sieve_benchmark PRIVATE cxx_std_23)
-target_link_libraries(parallel_sieve_benchmark PRIVATE bitvector)
+install(EXPORT bitvectorTargets
+  FILE bitvectorTargets.cmake
+  NAMESPACE lam::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lam_bitvector
+)
+
+# Benchmark Configuration
+add_subdirectory(benchmarks)
 
 enable_testing()
 add_subdirectory(tests)

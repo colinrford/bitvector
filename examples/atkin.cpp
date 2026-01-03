@@ -1,46 +1,8 @@
-/* Colin Ford
- *
- * The Sieve of Atkin is a more recent sieve (2004). It is claimed
- * by some to be faster than the Sieve of Eratosthenes, but (from
- * what I have read) there has not been an implementation of the
- * algorithm yet that is any faster than Eratosthenes. Theoretically,
- * the Sieve of Atkin is faster than Eratosthenes.
- *
- * This is a Sieve of Atkin implementation that I based off of
- * a Java Sieve of Atkin implementation that I found online.
- *
- * To be honest, I am not quite sure how the Sieve of Atkin works
- * (yet)
- *
- * During testing, this program was able to successfully find the
- * prime numbers between 0 and 1,000,000. It did so very quickly. My 
- * implementation seems to miss just one prime number at large N, but
- * I have not found the issue yet. 
- *
- * I checked execution time by using the time command while connected
- * to the lab machines (data in particular)
- *
- * limit = 45,000 : 
- *
- * $ time ./atkinBv > atkinBv
- *
- * real 0m0.010s
- * user 0m0.000s
- * sys  0m0.000s
- *
- *
- * limit = 1,000,000 :
- * 
- * $ time ./atkinBv > atkinBv
- * 
- * real 0m0.153s
- * user 0m0.040s
- * sys  0m0.040s
- *
- * By removing print statements, my program runs at 0m0.035s!!!
- *
- * Note: I kept some of the comments in from the Java implementation.
- * Note 2: I have not tried using atkin.c for a limit > 1,000,000.
+/*
+ *  atkin.cpp – written by Colin Ford
+ *    see github.com/colinrford/bitvector
+ *    currently unlicensed
+ *  Out of date!
  */
 
 #include "bitvector.h"

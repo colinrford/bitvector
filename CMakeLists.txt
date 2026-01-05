@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.2.260103 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260105 LANGUAGES CXX)
 
 find_package(Git)
 if(GIT_FOUND)
@@ -39,7 +39,6 @@ configure_file(
   config.cppm.in
   ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
 )
-
 
 # Sanitizer Options (all OFF by default for performance)
 option(LAM_ENABLE_ASAN "Enable AddressSanitizer" OFF)
@@ -99,9 +98,27 @@ install(EXPORT bitvectorTargets
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lam_bitvector
 )
 
+include(CMakePackageConfigHelpers)
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/lam_bitvectorConfig.cmake" [[
+include(CMakeFindDependencyMacro)
+include("${CMAKE_CURRENT_LIST_DIR}/bitvectorTargets.cmake")
+]])
+
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/lam_bitvectorConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/lam_bitvectorConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/lam_bitvectorConfigVersion.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lam_bitvector
+)
+
 # Benchmark Configuration
 add_subdirectory(benchmarks)
 
 enable_testing()
 add_subdirectory(tests)
-

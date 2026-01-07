@@ -24,3 +24,4 @@ lam_add_unit_test(ops_boolean_test       unit/ops_boolean_test.cpp)
 # Secure Allocator Proof-of-Concept
 lam_add_unit_test(secure_allocator_test  unit/secure_allocator_test.cpp)
 lam_add_unit_test(alias_test             unit/alias_test.cpp)
+lam_add_unit_test(sieve_test             unit/sieve_test.cpp)

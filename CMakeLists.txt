@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.2.260105 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260106 LANGUAGES CXX)
 
 find_package(Git)
 if(GIT_FOUND)
@@ -74,6 +74,7 @@ target_sources(bitvector
   FILES src/cpp/bitvector.cppm
         src/cpp/bitvector-core.cppm
         src/cpp/bitvector-boolean_ops.cppm
+        src/cpp/bitvector-algorithms.cppm
         ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
 )
 

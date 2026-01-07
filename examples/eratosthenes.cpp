@@ -14,49 +14,29 @@ int main()
   constexpr std::uint64_t firstprime = 2;
   constexpr std::uint64_t num_bits = 10000000;
   
-  // Use a IIFE (Immediately Invoked Lambda) to compute prime count at compile-time/runtime
-  // Note: For very large sizes, this might exceed constexpr step limits if run at compile-time.
-  // We'll run it at runtime for now to verify logic first.
-  
-  auto run_sieve = []() {
-    bitvector<> bv(num_bits); // Default allocator (constexpr friendly)
-    auto prime = firstprime;
-    std::uint64_t running_count = 0;
-    
-    // Clear initial composite numbers (even numbers > 2) - optimization, skipping for naive implementation matching original
-    
-    while (prime + 1 < num_bits - 1)
-    {
-      auto primecopy = prime;
-      while (prime * primecopy < num_bits - 1)
-      {
-        bv.set(prime * primecopy);
-        primecopy++;
-      }
-      while (prime + 1 < (num_bits - 1) && bv[++prime]);
-      running_count++;
-    }
-    return running_count;
+  // Helper to count primes from sieve result
+  auto count_primes = [](const auto& bv, std::uint64_t limit) {
+    if (limit < 2) return std::uint64_t{0};
+    // Sieve marks composites. Primes in [2, limit) = Total[2, limit) - Composites
+    // Total numbers in [2, limit) is (limit - 1) - 2 + 1 = limit - 2
+    // bv.count() returns number of set bits (composites)
+    // assuming bv has size >= limit
+    return (limit - 2) - bv.count();
+  };
+
+  auto run_sieve = [&]() {
+    auto bv = lam::bitvec::sieve_of_eratosthenes(num_bits);
+    return count_primes(bv, num_bits);
   };
 
   // Compile-time Sieve Execution
   constexpr std::uint64_t compile_time_size = 100'000;
   constexpr auto run_sieve_ct = [](std::size_t N) {
-    bitvector<> bv(N);
-    auto prime = firstprime;
-    std::uint64_t running_count = 0;
-    while (prime + 1 < N - 1)
-    {
-      auto primecopy = prime;
-      while (prime * primecopy < N - 1)
-      {
-        bv.set(prime * primecopy);
-        primecopy++;
-      }
-      while (prime + 1 < (N - 1) && bv[++prime]);
-      running_count++;
-    }
-    return running_count;
+    auto bv = lam::bitvec::sieve_of_eratosthenes(N);
+    // Cannot use lambda helper easily in constexpr if not structured right, 
+    // but calculating inline is easy.
+    if (N < 2) return std::uint64_t{0};
+    return static_cast<std::uint64_t>((N - 2) - bv.count());
   };
   
   constexpr auto ct_count = run_sieve_ct(compile_time_size);

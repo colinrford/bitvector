@@ -12,33 +12,30 @@ constexpr int iterations = 5;
 
 // Generic Sieve Implementation
 template <std::uint64_t N, typename BitSet>
-auto run_sieve(BitSet& bv) 
+void run_sieve(BitSet& bv) 
 {
   if constexpr (requires { bv.reset(); }) 
     bv.reset();
   else if constexpr (requires { bv.clear_bv(); }) 
     bv.clear_bv();
   
-  std::uint64_t firstprime = 2;
-  auto prime = firstprime;
-  std::uint64_t running_count = 0;
+  // 0 and 1 are ignored (assumed 0/prime-like in bitset state)
+  // Sieve marks composites starting from 4
   
-  while (prime + 1 < N - 1)
+  for (std::uint64_t p = 2; p * p < N; ++p)
   {
-    auto primecopy = prime;
-    while (prime * primecopy < N - 1)
+    bool is_prime = false;
+    // Check if p is prime (bit not set)
+    // std::bitset and bitvector interface access
+    if constexpr (requires { bv.test(p); }) is_prime = !bv.test(p);
+    else is_prime = !bv[p];
+
+    if (is_prime)
     {
-      bv.set(prime * primecopy);
-      primecopy++;
+      for (std::uint64_t i = p * p; i < N; i += p)
+        bv.set(i);
     }
-    // Access optimization match
-    if constexpr (requires { bv[0]; }) 
-    {
-      while (prime + 1 < (N - 1) && bv[++prime]);
-    }
-    running_count++;
   }
-  return running_count;
 }
 
 template <std::uint64_t N>
@@ -48,14 +45,16 @@ void run_comparison()
   
   // Custom Lambda
   auto run_custom = []() {
-    bitvector<> bv(N);
-    return run_sieve<N>(bv);
+    auto bv = lam::bitvec::sieve_of_eratosthenes(N);
+    // Count primes: (N-2) - composites
+    return (N - 2) - bv.count();
   };
   
   // Std Lambda
   auto run_std = []() {
-    std::bitset<N> bv; // Stack allocation might fail for huge N, but 1M is fine (125KB)
-    return run_sieve<N>(bv);
+    std::bitset<N> bv; // Stack allocation might fail for huge N
+    run_sieve<N>(bv);
+    return (N - 2) - bv.count();
   };
 
   // Validation
@@ -101,4 +100,30 @@ int main()
   run_comparison<10'000'000>();
   run_comparison<15'000'000>();
   run_comparison<20'000'000>();
+
+  std::println("\n--- Segmented Sieve Comparison ---");
+  auto run_seg_bench = []<std::uint64_t N>() {
+    std::println("--- Benchmarking N = {} ---", N);
+    
+    // Simple
+    auto t1 = std::chrono::steady_clock::now();
+    for(int i=0; i<3; ++i) {volatile auto b = lam::bitvec::sieve_of_eratosthenes(N);}
+    auto t2 = std::chrono::steady_clock::now();
+    
+    // Segmented (using default size)
+    auto t3 = std::chrono::steady_clock::now();
+    for(int i=0; i<3; ++i) {volatile auto b = lam::bitvec::sieve_of_eratosthenes_segmented(N);}
+    auto t4 = std::chrono::steady_clock::now();
+    
+    double ms_simple = std::chrono::duration<double, std::milli>(t2 - t1).count() / 3.0;
+    double ms_seg = std::chrono::duration<double, std::milli>(t4 - t3).count() / 3.0;
+    
+    std::println("Simple:    {:.2f} ms", ms_simple);
+    std::println("Segmented: {:.2f} ms", ms_seg);
+    std::println("Speedup:   {:.2f}x\n", ms_simple / ms_seg);
+  };
+  
+  run_seg_bench.template operator()<10'000'000>();
+  run_seg_bench.template operator()<100'000'000>();
+  run_seg_bench.template operator()<1'000'000'000>();
 }

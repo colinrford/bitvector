@@ -16,9 +16,9 @@ current features of the c++ module `lam.bitvector`:
 - **Memory Safety**: extensive validation via AddressSanitizer (ASan) and UndefinedBehaviorSanitizer (UBSan).
 - **Modern IO**: Built-in support for `std::print` and `std::format`.
 - **High Performance**: Optimized for cache locality; faster than `std::bitset` in local parallel/chunked benchmarks.
-- **Core Guidelines Compliant**: Clean, modern C++ codebase verified by `clang-tidy`.
+- **Core Guidelines Compliant**: Clean, modern C++ codebase combed through by `clang-tidy`.
 
-Currently this software is unlicensed. It is subject to change both in form and in license at any time; I plan to endow an Apache 2.0 with LLVM exceptions license when the time is right. Before then I would like to test it with a few other projects.
+Currently this software is unlicensed. It is subject to change both in form and in license at any time; I plan to endow a license when the time is right. Before then I would like to test it with a few other projects.
 
 ## Usage
 
@@ -39,7 +39,7 @@ int main()
 
 ## Building and Testing
 
-Requires a C++23 compliant compiler (Clang 16+ recommended for Modules support) and CMake 3.28+.
+Requires CMake 3.31.6+ and a c++23 compiler that CMake can use to build `import std`, which these days is Clang 18+, GCC 15.2+.
 
 ```bash
 # Build (Release)

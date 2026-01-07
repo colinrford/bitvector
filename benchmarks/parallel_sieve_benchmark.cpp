@@ -22,7 +22,7 @@ constexpr int ITERATIONS = 3;
 template <typename Allocator = std::allocator<std::uint64_t>>
 std::vector<std::uint64_t> sieve_base_primes(std::uint64_t limit, const Allocator& alloc = Allocator())
 {
-  bitvector<Allocator> is_composite(limit + 1, alloc);
+  auto is_composite = lam::bitvec::sieve_of_eratosthenes(limit + 1, alloc);
   std::vector<std::uint64_t> primes;
   
   for (std::uint64_t p = 2; p <= limit; ++p)
@@ -30,8 +30,6 @@ std::vector<std::uint64_t> sieve_base_primes(std::uint64_t limit, const Allocato
     if (!is_composite[p])
     {
       primes.push_back(p);
-      for (std::uint64_t m = p * p; m <= limit; m += p)
-        is_composite.set(m);
     }
   }
   return primes;

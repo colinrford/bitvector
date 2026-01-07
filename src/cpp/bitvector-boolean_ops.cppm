@@ -12,14 +12,13 @@ import :core;
 namespace lam::bitvec
 {
 
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator> operator&(const bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
   using size_type = typename bitvector<Allocator>::size_type;
-  
   // Create result with allocator from lhs (standard practice)
   bitvector<Allocator> result(lhs.size(), uninitialized, lhs.get_allocator());
 
@@ -34,7 +33,7 @@ constexpr bitvector<Allocator> operator&(const bitvector<Allocator>& lhs, const 
   return result;
 }
 
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator> operator|(const bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())
@@ -55,7 +54,7 @@ constexpr bitvector<Allocator> operator|(const bitvector<Allocator>& lhs, const 
   return result;
 }
 
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator> operator^(const bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())
@@ -77,11 +76,11 @@ constexpr bitvector<Allocator> operator^(const bitvector<Allocator>& lhs, const 
 }
 
 // Unary NOT operator
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator> operator~(const bitvector<Allocator>& bv)
 {
   using size_type = typename bitvector<Allocator>::size_type;
-  
+
   bitvector<Allocator> result(bv.size(), uninitialized, bv.get_allocator());
 
   const auto* bv_data = bv.data();
@@ -99,7 +98,7 @@ constexpr bitvector<Allocator> operator~(const bitvector<Allocator>& bv)
 }
 
 // Compound assignment operators
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>& operator&=(bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())
@@ -117,7 +116,7 @@ constexpr bitvector<Allocator>& operator&=(bitvector<Allocator>& lhs, const bitv
   return lhs;
 }
 
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>& operator|=(bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())
@@ -135,7 +134,7 @@ constexpr bitvector<Allocator>& operator|=(bitvector<Allocator>& lhs, const bitv
   return lhs;
 }
 
-export template <bitvector_allocator_c Allocator>
+export template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>& operator^=(bitvector<Allocator>& lhs, const bitvector<Allocator>& rhs)
 {
   if (lhs.size() != rhs.size())

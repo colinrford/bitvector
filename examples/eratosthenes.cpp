@@ -13,14 +13,11 @@ int main()
 {
   constexpr std::uint64_t firstprime = 2;
   constexpr std::uint64_t num_bits = 10000000;
-  
+
   // Helper to count primes from sieve result
   auto count_primes = [](const auto& bv, std::uint64_t limit) {
-    if (limit < 2) return std::uint64_t{0};
-    // Sieve marks composites. Primes in [2, limit) = Total[2, limit) - Composites
-    // Total numbers in [2, limit) is (limit - 1) - 2 + 1 = limit - 2
-    // bv.count() returns number of set bits (composites)
-    // assuming bv has size >= limit
+    if (limit < 2)
+      return std::uint64_t{0};
     return (limit - 2) - bv.count();
   };
 
@@ -29,27 +26,39 @@ int main()
     return count_primes(bv, num_bits);
   };
 
-  // Compile-time Sieve Execution
-  constexpr std::uint64_t compile_time_size = 100'000;
-  constexpr auto run_sieve_ct = [](std::size_t N) {
-    auto bv = lam::bitvec::sieve_of_eratosthenes(N);
-    // Cannot use lambda helper easily in constexpr if not structured right, 
-    // but calculating inline is easy.
-    if (N < 2) return std::uint64_t{0};
-    return static_cast<std::uint64_t>((N - 2) - bv.count());
-  };
-  
-  constexpr auto ct_count = run_sieve_ct(compile_time_size);
-  static_assert(ct_count == 9592); // Known prime count for 100,000
-  
-  // Runtime Execution
-  std::println("Compile-time verification passed (N={}).", compile_time_size);
+  try
+  {
+    // Compile-time Sieve Execution
+    constexpr std::uint64_t compile_time_size = 100'000;
+    constexpr auto run_sieve_ct = [](std::size_t N) {
+      auto bv = lam::bitvec::sieve_of_eratosthenes(N);
+      if (N < 2)
+        return std::uint64_t{0};
+      return static_cast<std::uint64_t>((N - 2) - bv.count());
+    };
 
-  // Runtime execution for the large size
-  std::println("Calculating primes up to {}...", num_bits);
-  auto count = run_sieve();
-  
-  std::println("There are {} primes in the range 0 - {}\n",
-               count,
-               num_bits);
+    constexpr auto ct_count = run_sieve_ct(compile_time_size);
+    constexpr auto KNOWN_PRIME_COUNT_100K = 9592;
+    static_assert(ct_count == KNOWN_PRIME_COUNT_100K); // Known prime count for 100,000
+
+    // Runtime Execution
+    std::println("Compile-time verification passed (N={}).", compile_time_size);
+
+    // Runtime execution for the large size
+    std::println("Calculating primes up to {}...", num_bits);
+    auto count = run_sieve();
+
+    std::println("There are {} primes in the range 0 - {}\n", count, num_bits);
+    return 0;
+  }
+  catch (const std::exception& e)
+  {
+    std::println("Exception caught: {}", e.what());
+    return 1;
+  }
+  catch (...)
+  {
+    std::println("Unknown exception caught");
+    return 1;
+  }
 }

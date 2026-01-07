@@ -13,7 +13,7 @@ using namespace lam::bitvec;
 constexpr bool test_constexpr_bulk()
 {
   bitvector<> bv(128);
-  
+
   // All/None/Any empty/zeros
   if (!bv.none())
     return false;
@@ -24,7 +24,7 @@ constexpr bool test_constexpr_bulk()
   // Unless size is 0? Here size is 128.
   if (bv.all())
     return false;
-  
+
   // Set All
   bv.set_all();
   if (!bv.all())
@@ -35,17 +35,17 @@ constexpr bool test_constexpr_bulk()
     return false;
   if (bv.count() != 128)
     return false;
-  
+
   // Reset
   bv.reset();
   if (bv.count() != 0)
     return false;
-  
+
   // Flip All
   bv.flip_all();
   if (bv.count() != 128)
     return false;
-  
+
   return true;
 }
 
@@ -59,7 +59,7 @@ int main()
   bv.set(63);
   if (bv.count() != 2)
     return 1;
-  
+
   // Test all() with partial word
   bitvector<> small(3); // 3 bits
   small.set_all();
@@ -70,11 +70,11 @@ int main()
     return 1;
   if (small.count() != 3)
     return 1;
-  
+
   small.set(1, false);
   if (small.all())
     return 1;
-  
+
   // Test any()
   small.reset();
   if (small.any())
@@ -82,16 +82,16 @@ int main()
   small.set(2);
   if (!small.any())
     return 1;
-  
+
   // Test flip_all() at runtime
   bitvector<> flip_test(10);
   flip_test.set(0);
   flip_test.set(2);
   flip_test.flip_all();
-  
+
   // Originally 10100... -> 0000000000...
   // Flipped:   0101111111...
-  
+
   if (flip_test.get(0))
     return 1;
   if (!flip_test.get(1))

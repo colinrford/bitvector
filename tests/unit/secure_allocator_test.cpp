@@ -13,18 +13,19 @@ using namespace lam::bitvec;
 // Secure Allocator Proof-of-Concept, don't use this
 // This allocator scrubs memory (fills with zeros) upon deallocation
 // to prevent sensitive data from lingering in RAM.
-template <typename T>
+template<typename T>
 struct secure_scrub_allocator
 {
   using value_type = T;
-  
+
   constexpr secure_scrub_allocator() noexcept {}
-  template <typename U> constexpr secure_scrub_allocator(const secure_scrub_allocator<U>&) noexcept {}
+  template<typename U>
+  constexpr secure_scrub_allocator(const secure_scrub_allocator<U>&) noexcept
+  {}
 
-  constexpr T* allocate(std::size_t n) 
-  { return std::allocator<T>{}.allocate(n); }
+  constexpr T* allocate(std::size_t n) { return std::allocator<T>{}.allocate(n); }
 
-  constexpr void deallocate(T* p, std::size_t n) noexcept 
+  constexpr void deallocate(T* p, std::size_t n) noexcept
   {
     // SCRUBBING
     // Use volatile cast to prevent Dead Store Elimination (compiler optimizing away the write)
@@ -38,42 +39,43 @@ struct secure_scrub_allocator
     std::allocator<T>{}.deallocate(p, n);
   }
 
-  friend constexpr bool operator==(const secure_scrub_allocator&, const secure_scrub_allocator&) 
-  { return true; }
+  friend constexpr bool operator==(const secure_scrub_allocator&, const secure_scrub_allocator&) { return true; }
 };
 
-constexpr bool test_constexpr_secure() {
+constexpr bool test_constexpr_secure()
+{
   // Verify basic operations work at compile-time with this allocator
   bitvector<secure_scrub_allocator<std::uint64_t>> bv(64);
   bv.set(0);
-  if (!bv[0]) 
+  if (!bv[0])
     return false;
   bv.flip_all();
-  if (bv[0]) 
+  if (bv[0])
     return false;
   return true;
 }
 
-int main() 
+int main()
 {
   // 1. Verify it satisfies the Bitvector Allocator Concept
   static_assert(bitvector_allocator_c<secure_scrub_allocator<std::uint64_t>>);
-  
+
   // 2. Verify Constexpr Usage
   static_assert(test_constexpr_secure());
 
   // 3. Usage Test (Runtime)
   {
-      // Create a "secret" bitvector using the secure allocator
-      bitvector<secure_scrub_allocator<std::uint64_t>> secret_bv(100);
-      
-      secret_bv.set_all(); 
-      if (!secret_bv.all()) return 1;
-      
-      // ... operations ...
-      
-      // Destructor will strictly call deallocate(), which runs the scrub loop.
+    // Create a "secret" bitvector using the secure allocator
+    bitvector<secure_scrub_allocator<std::uint64_t>> secret_bv(100);
+
+    secret_bv.set_all();
+    if (!secret_bv.all())
+      return 1;
+
+    // ... operations ...
+
+    // Destructor will strictly call deallocate(), which runs the scrub loop.
   }
-  
+
   return 0;
 }

@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.2.260105 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260107 LANGUAGES CXX)
 
 find_package(Git)
 if(GIT_FOUND)
@@ -74,6 +74,7 @@ target_sources(bitvector
   FILES src/cpp/bitvector.cppm
         src/cpp/bitvector-core.cppm
         src/cpp/bitvector-boolean_ops.cppm
+        src/cpp/bitvector-algorithms.cppm
         ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
 )
 
@@ -122,3 +123,20 @@ add_subdirectory(benchmarks)
 
 enable_testing()
 add_subdirectory(tests)
+
+# Optional Integration Examples
+find_package(lam_ctbignum CONFIG QUIET)
+if(lam_ctbignum_FOUND)
+  message(STATUS "Found lam_ctbignum: building interoperability example")
+  # Force C++23 on the imported target to satisfy module requirements
+  set_property(TARGET lam::ctbignum APPEND PROPERTY INTERFACE_COMPILE_FEATURES cxx_std_23)
+
+  add_executable(ctbignum_interop examples/ctbignum_interop.cpp)
+  target_compile_features(ctbignum_interop PRIVATE cxx_std_23)
+  target_link_libraries(ctbignum_interop PRIVATE lam::bitvector lam::ctbignum)
+endif()
+
+# Build general examples
+add_executable(atkin examples/atkin.cpp)
+target_compile_features(atkin PRIVATE cxx_std_23)
+target_link_libraries(atkin PRIVATE lam::bitvector)

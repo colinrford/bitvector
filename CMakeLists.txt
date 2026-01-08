@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.2.260107 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260108 LANGUAGES CXX)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -75,6 +75,7 @@ target_sources(bitvector
   PUBLIC
   FILE_SET CXX_MODULES
   TYPE CXX_MODULES
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/src/cpp ${CMAKE_CURRENT_BINARY_DIR}
   FILES src/cpp/bitvector.cppm
         src/cpp/bitvector-core.cppm
         src/cpp/bitvector-boolean_ops.cppm
@@ -133,7 +134,13 @@ find_package(lam_ctbignum CONFIG QUIET)
 if(lam_ctbignum_FOUND)
   message(STATUS "Found lam_ctbignum: building interoperability example")
   # Force C++23 on the imported target to satisfy module requirements
-  set_property(TARGET lam::ctbignum APPEND PROPERTY INTERFACE_COMPILE_FEATURES cxx_std_23)
+  get_target_property(_aliased lam::ctbignum ALIASED_TARGET)
+  if(_aliased)
+      set(_target ${_aliased})
+  else()
+      set(_target lam::ctbignum)
+  endif()
+  set_property(TARGET ${_target} APPEND PROPERTY INTERFACE_COMPILE_FEATURES cxx_std_23)
 
   add_executable(ctbignum_interop examples/ctbignum_interop.cpp)
   target_compile_features(ctbignum_interop PRIVATE cxx_std_23)

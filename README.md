@@ -4,7 +4,7 @@ This is my bitvector library. It was originally written in C for
 an undergraduate course, *Programming in C*. It's much different
 now.
 
-## Bitvector, a [LAM](https://github.com/colinrford/lam) library
+## Bitvector, a [LAM](https://www.github.com/colinrford/lam) library
 Not much more than another bitvector at this time, although it is
 appreciably faster than `std::bitset` in my limited micro
 benchmarks (hopefully part of the 1% that matters). Here are some

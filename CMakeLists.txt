@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True) #is this needed?
 set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-project(lam_bitvector VERSION 0.2.260108 LANGUAGES CXX)
+project(lam_bitvector VERSION 0.2.260113 LANGUAGES CXX)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -40,11 +40,10 @@ else()
 endif()
 
 configure_file(
-  config.cppm.in
-  ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
+  bitvector_config.cppm.in
+  ${CMAKE_CURRENT_BINARY_DIR}/bitvector_config.cppm
 )
 
-# Sanitizer Options (all OFF by default for performance)
 option(LAM_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(LAM_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(LAM_ENABLE_TSAN "Enable ThreadSanitizer (cannot combine with ASan)" OFF)
@@ -80,16 +79,13 @@ target_sources(bitvector
         src/cpp/bitvector-core.cppm
         src/cpp/bitvector-boolean_ops.cppm
         src/cpp/bitvector-algorithms.cppm
-        ${CMAKE_CURRENT_BINARY_DIR}/config.cppm
+        ${CMAKE_CURRENT_BINARY_DIR}/bitvector_config.cppm
 )
 
 target_compile_features(bitvector PUBLIC cxx_std_23)
 
-
-# Installation Configuration
 include(GNUInstallDirs)
 
-# Library Installation
 install(TARGETS bitvector
   EXPORT bitvectorTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -123,13 +119,11 @@ install(FILES
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lam_bitvector
 )
 
-# Benchmark Configuration
 add_subdirectory(benchmarks)
 
 enable_testing()
 add_subdirectory(tests)
 
-# Optional Integration Examples
 find_package(lam_ctbignum CONFIG QUIET)
 if(lam_ctbignum_FOUND)
   message(STATUS "Found lam_ctbignum: building interoperability example")
@@ -147,7 +141,6 @@ if(lam_ctbignum_FOUND)
   target_link_libraries(ctbignum_interop PRIVATE lam::bitvector lam::ctbignum)
 endif()
 
-# Build general examples
 add_executable(atkin examples/atkin.cpp)
 target_compile_features(atkin PRIVATE cxx_std_23)
 target_link_libraries(atkin PRIVATE lam::bitvector)

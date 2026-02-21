@@ -9,9 +9,9 @@ target_compile_options(eratosthenes PRIVATE
   "-fconstexpr-steps=${CLANG_CONSTEXPR_STEPS}"
 )
 
-add_executable(benchmark benchmark.cpp)
-target_compile_features(benchmark PRIVATE cxx_std_23)
-target_link_libraries(benchmark PRIVATE bitvector)
+add_executable(bitvector_benchmark benchmark.cpp)
+target_compile_features(bitvector_benchmark PRIVATE cxx_std_23)
+target_link_libraries(bitvector_benchmark PRIVATE bitvector)
 
 add_executable(bench_compile_custom bench_compile_custom.cpp)
 target_link_libraries(bench_compile_custom PRIVATE bitvector)

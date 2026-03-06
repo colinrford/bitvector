@@ -4,7 +4,7 @@
  *    currently unlicensed
  *  lam.bitvector is a c++ module
  */
- 
+
 export module lam.bitvector;
 
 export import :core;
@@ -14,6 +14,6 @@ export import :config;
 
 export namespace lam
 {
-  using bitvec::bitvector;
-  using bitvec::bitvector_allocator_c;
-}
+using bitvec::bitvector;
+using bitvec::bitvector_allocator_c;
+} // namespace lam

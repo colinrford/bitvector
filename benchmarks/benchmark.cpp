@@ -3,6 +3,7 @@
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  */
+
 import std;
 import lam.bitvector;
 

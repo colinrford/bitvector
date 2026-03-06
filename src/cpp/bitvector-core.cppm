@@ -13,16 +13,13 @@ namespace lam::bitvec
 {
 
 export struct uninitialized_t
-{
-};
+{};
 export inline constexpr uninitialized_t uninitialized{};
 
-export
-template <typename T>
+export template<typename T>
 concept bitvector_allocator_c = std::same_as<typename T::value_type, std::uint64_t>;
 
-export
-template <bitvector_allocator_c Allocator = std::allocator<std::uint64_t>>
+export template<bitvector_allocator_c Allocator = std::allocator<std::uint64_t>>
 class bitvector
 {
 public:
@@ -44,8 +41,7 @@ public:
     word_type* m_word_ptr = nullptr;
     word_type m_mask = 0;
 
-    constexpr bit_proxy(word_type* w, word_type mask) : m_word_ptr(w), m_mask(mask)
-    { }
+    constexpr bit_proxy(word_type* w, word_type mask) : m_word_ptr(w), m_mask(mask) {}
 
   public:
     constexpr bit_proxy(const bit_proxy&) = default;
@@ -72,9 +68,9 @@ private:
 public:
   constexpr explicit bitvector(size_type num_bits, const Allocator& alloc = Allocator());
   constexpr bitvector(size_type num_bits, uninitialized_t, const Allocator& alloc = Allocator());
-  
-  template <std::ranges::input_range R>
-  requires std::same_as<std::ranges::range_value_t<R>, word_type> && std::ranges::sized_range<R>
+
+  template<std::ranges::input_range R>
+    requires std::same_as<std::ranges::range_value_t<R>, word_type> && std::ranges::sized_range<R>
   constexpr explicit bitvector(R&& source, const Allocator& alloc = Allocator());
 
   constexpr bitvector();
@@ -96,27 +92,33 @@ public:
 
   [[nodiscard]] constexpr size_type length() const;
   [[nodiscard]] constexpr size_type size() const;
-  
+
   // Direct data access for optimized operations in other partitions
   [[nodiscard]] constexpr word_type* data() noexcept;
   [[nodiscard]] constexpr const word_type* data() const noexcept;
   [[nodiscard]] constexpr size_type word_count() const noexcept;
 
   // Utility methods
-  [[nodiscard]] constexpr size_type count() const noexcept;  // popcount
+  [[nodiscard]] constexpr size_type count() const noexcept; // popcount
   [[nodiscard]] constexpr bool any() const noexcept;
   [[nodiscard]] constexpr bool all() const noexcept;
   [[nodiscard]] constexpr bool none() const noexcept;
-  constexpr void reset() noexcept;      // set all bits to 0
-  constexpr void set_all() noexcept;    // set all bits to 1
-  constexpr void flip_all() noexcept;   // invert all bits
+  constexpr void reset() noexcept;    // set all bits to 0
+  constexpr void set_all() noexcept;  // set all bits to 1
+  constexpr void flip_all() noexcept; // invert all bits
 
-  template <std::ranges::output_range<word_type> R>
-  constexpr void export_words(R&& dest) const;
+  // Workaround: MSVC error C2244 ("unable to match function definition to an
+  // existing declaration") is raised for out-of-class definitions of member
+  // function templates with a double template<> header (outer class template
+  // + inner member template) inside a C++ module partition. Defined inline.
+  // https://developercommunity.visualstudio.com/search?entry=suggestion&orderBy=newest&q=C2244+modules
+  template<std::ranges::output_range<word_type> R>
+  constexpr void export_words(R&& dest) const
+  { std::ranges::copy_n(m_data, m_capacity_words, std::ranges::begin(std::forward<R>(dest))); }
 
   constexpr void print() const;
 
-  template <typename A, typename CharT>
+  template<typename A, typename CharT>
   friend struct std::formatter;
 
   friend void swap(bitvector& a, bitvector& b) noexcept
@@ -135,7 +137,7 @@ public:
 
 // bit_proxy implementation
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 
 constexpr bitvector<Allocator>::bit_proxy& bitvector<Allocator>::bit_proxy::operator=(bool val)
 {
@@ -146,34 +148,32 @@ constexpr bitvector<Allocator>::bit_proxy& bitvector<Allocator>::bit_proxy::oper
   return *this;
 }
 
-template <bitvector_allocator_c Allocator>
-constexpr bitvector<Allocator>::bit_proxy&
-bitvector<Allocator>::bit_proxy::operator=(const bit_proxy& other)
+template<bitvector_allocator_c Allocator>
+constexpr bitvector<Allocator>::bit_proxy& bitvector<Allocator>::bit_proxy::operator=(const bit_proxy& other)
 {
   if (this == &other)
     return *this;
   return *this = static_cast<bool>(other);
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bit_proxy::operator bool() const
 { return (*m_word_ptr & m_mask) != 0; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::bit_proxy::operator~() const
 { return !static_cast<bool>(*this); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::bit_proxy::flip()
 { *m_word_ptr ^= m_mask; }
 
 // bitvector implementation
-template <bitvector_allocator_c Allocator>
-constexpr typename bitvector<Allocator>::size_type
-bitvector<Allocator>::words_needed(size_type num_bits) const
+template<bitvector_allocator_c Allocator>
+constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::words_needed(size_type num_bits) const
 { return (num_bits + bits_per_word - 1) / bits_per_word; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::allocate_storage(size_type num_bits, bool init_zeros)
 {
   if (num_bits == 0)
@@ -184,13 +184,13 @@ constexpr void bitvector<Allocator>::allocate_storage(size_type num_bits, bool i
   }
   m_capacity_words = words_needed(num_bits);
   m_data = std::allocator_traits<Allocator>::allocate(m_alloc, m_capacity_words);
-  
+
   if (init_zeros || std::is_constant_evaluated())
     for (size_type i = 0; i < m_capacity_words; ++i)
       std::allocator_traits<Allocator>::construct(m_alloc, m_data + i, 0);
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::deallocate_storage()
 {
   if (m_data)
@@ -203,23 +203,21 @@ constexpr void bitvector<Allocator>::deallocate_storage()
   }
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bitvector(size_type num_bits, const Allocator& alloc)
-    : m_alloc(alloc), 
-      m_num_bits(num_bits)
+  : m_alloc(alloc), m_num_bits(num_bits)
 { allocate_storage(num_bits, true); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bitvector(size_type num_bits, uninitialized_t, const Allocator& alloc)
-    : m_alloc(alloc), 
-      m_num_bits(num_bits)
+  : m_alloc(alloc), m_num_bits(num_bits)
 { allocate_storage(num_bits, false); }
 
-template <bitvector_allocator_c Allocator>
-template <std::ranges::input_range R>
-requires std::same_as<std::ranges::range_value_t<R>, typename bitvector<Allocator>::word_type> && std::ranges::sized_range<R>
-constexpr bitvector<Allocator>::bitvector(R&& source, const Allocator& alloc)
-    : m_alloc(alloc)
+template<bitvector_allocator_c Allocator>
+template<std::ranges::input_range R>
+  requires std::same_as<std::ranges::range_value_t<R>, typename bitvector<Allocator>::word_type> &&
+           std::ranges::sized_range<R>
+constexpr bitvector<Allocator>::bitvector(R&& source, const Allocator& alloc) : m_alloc(alloc)
 {
   size_type num_words = std::ranges::size(source);
   m_num_bits = num_words * bits_per_word;
@@ -231,41 +229,40 @@ constexpr bitvector<Allocator>::bitvector(R&& source, const Allocator& alloc)
   }
 }
 
-template <bitvector_allocator_c Allocator>
-constexpr bitvector<Allocator>::bitvector() : bitvector(0) { }
+template<bitvector_allocator_c Allocator>
+constexpr bitvector<Allocator>::bitvector() : bitvector(0)
+{}
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::~bitvector()
 { deallocate_storage(); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bitvector(const bitvector& other)
-    : m_alloc(std::allocator_traits<Allocator>::select_on_container_copy_construction(other.m_alloc)),
-      m_num_bits(other.m_num_bits)
+  : m_alloc(std::allocator_traits<Allocator>::select_on_container_copy_construction(other.m_alloc)),
+    m_num_bits(other.m_num_bits)
 {
   allocate_storage(m_num_bits, false); // Don't zero, we copy immediately
   if (m_data)
     std::copy(other.m_data, other.m_data + m_capacity_words, m_data);
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bitvector(bitvector&& other) noexcept
-    : m_alloc(std::move(other.m_alloc)),
-      m_data(other.m_data),
-      m_num_bits(other.m_num_bits),
-      m_capacity_words(other.m_capacity_words)
+  : m_alloc(std::move(other.m_alloc)), m_data(other.m_data), m_num_bits(other.m_num_bits),
+    m_capacity_words(other.m_capacity_words)
 {
   other.m_data = nullptr;
   other.m_num_bits = 0;
   other.m_capacity_words = 0;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>& bitvector<Allocator>::operator=(const bitvector& other)
 {
   if (this == &other)
     return *this;
-  
+
   // Always propagate allocator first if POCCA is true
   if constexpr (std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value)
   {
@@ -281,7 +278,7 @@ constexpr bitvector<Allocator>& bitvector<Allocator>::operator=(const bitvector&
       return *this;
     }
   }
-  
+
   // Allocators are compatible, check if reallocation needed
   if (m_capacity_words != other.m_capacity_words)
   {
@@ -297,7 +294,7 @@ constexpr bitvector<Allocator>& bitvector<Allocator>::operator=(const bitvector&
   return *this;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>& bitvector<Allocator>::operator=(bitvector&& other) noexcept
 {
   if (this == &other)
@@ -319,7 +316,7 @@ constexpr bitvector<Allocator>& bitvector<Allocator>::operator=(bitvector&& othe
   return *this;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::get(size_type index) const
 {
   if (index >= m_num_bits)
@@ -327,15 +324,15 @@ constexpr bool bitvector<Allocator>::get(size_type index) const
   return (m_data[index / bits_per_word] >> (index % bits_per_word)) & 1ULL;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::operator[](size_type index) const
 { return (m_data[index / bits_per_word] >> (index % bits_per_word)) & 1ULL; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bitvector<Allocator>::bit_proxy bitvector<Allocator>::operator[](size_type index)
 { return bit_proxy(m_data + (index / bits_per_word), 1ULL << (index % bits_per_word)); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::set(size_type index, bool value)
 {
   if (index >= m_num_bits)
@@ -346,7 +343,7 @@ constexpr void bitvector<Allocator>::set(size_type index, bool value)
     m_data[index / bits_per_word] &= ~(1ULL << (index % bits_per_word));
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::toggle(size_type index)
 {
   if (index >= m_num_bits)
@@ -354,33 +351,33 @@ constexpr void bitvector<Allocator>::toggle(size_type index)
   m_data[index / bits_per_word] ^= (1ULL << (index % bits_per_word));
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::clear(size_type index)
 { set(index, false); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::length() const
 { return m_num_bits; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::size() const
 { return m_num_bits; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr typename bitvector<Allocator>::word_type* bitvector<Allocator>::data() noexcept
 { return m_data; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr const typename bitvector<Allocator>::word_type* bitvector<Allocator>::data() const noexcept
 { return m_data; }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::word_count() const noexcept
 { return m_capacity_words; }
 
 // Utility method implementations
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::count() const noexcept
 {
   size_type total = 0;
@@ -389,50 +386,50 @@ constexpr typename bitvector<Allocator>::size_type bitvector<Allocator>::count()
   return total;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::any() const noexcept
 {
   for (size_type i = 0; i < m_capacity_words; ++i)
-    if (m_data[i] != 0) 
+    if (m_data[i] != 0)
       return true;
   return false;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::all() const noexcept
 {
-  if (m_num_bits == 0) 
+  if (m_num_bits == 0)
     return true;
-  
+
   // Check all complete words
   size_type full_words = m_num_bits / bits_per_word;
   for (size_type i = 0; i < full_words; ++i)
-    if (m_data[i] != ~word_type{0}) 
+    if (m_data[i] != ~word_type{0})
       return false;
-  
+
   // Check remaining bits in last word
   size_type remaining_bits = m_num_bits % bits_per_word;
   if (remaining_bits > 0)
   {
     word_type mask = (word_type{1} << remaining_bits) - 1;
-    if ((m_data[full_words] & mask) != mask) 
+    if ((m_data[full_words] & mask) != mask)
       return false;
   }
   return true;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr bool bitvector<Allocator>::none() const noexcept
 { return !any(); }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::reset() noexcept
 {
   for (size_type i = 0; i < m_capacity_words; ++i)
     m_data[i] = 0;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::set_all() noexcept
 {
   for (size_type i = 0; i < m_capacity_words; ++i)
@@ -444,7 +441,7 @@ constexpr void bitvector<Allocator>::set_all() noexcept
     m_data[m_capacity_words - 1] &= (word_type{1} << remaining) - 1;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::flip_all() noexcept
 {
   for (size_type i = 0; i < m_capacity_words; ++i)
@@ -456,7 +453,7 @@ constexpr void bitvector<Allocator>::flip_all() noexcept
     m_data[m_capacity_words - 1] &= (word_type{1} << remaining) - 1;
 }
 
-template <bitvector_allocator_c Allocator>
+template<bitvector_allocator_c Allocator>
 constexpr void bitvector<Allocator>::print() const
 {
   for (size_type i = 0; i < m_num_bits; ++i)
@@ -464,19 +461,12 @@ constexpr void bitvector<Allocator>::print() const
   std::println("");
 }
 
-template <bitvector_allocator_c Allocator>
-template <std::ranges::output_range<typename bitvector<Allocator>::word_type> R>
-constexpr void bitvector<Allocator>::export_words(R&& dest) const
-{
-  std::ranges::copy_n(m_data, m_capacity_words, std::ranges::begin(std::forward<R>(dest)));
-}
-
 } // namespace lam::bitvec
 
-// Formatter specialization must be in global namespace, but we are in a module partition... 
+// Formatter specialization must be in global namespace, but we are in a module partition...
 // It should probably be in the primary interface or exported if possible.
 // Standard practice is to keep it with the type.
-template <typename Alloc>
+template<typename Alloc>
 struct std::formatter<lam::bitvec::bitvector<Alloc>> : std::formatter<std::string> // NOLINT(cert-dcl58-cpp)
 {
   auto format(const lam::bitvec::bitvector<Alloc>& bv, std::format_context& ctx) const

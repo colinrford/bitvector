@@ -1,5 +1,5 @@
 /*
- *  bench_compile_std.cpp – written by Colin Ford
+ *  bench_compile_std.cpp
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  */
@@ -24,7 +24,8 @@ constexpr auto run_sieve = []() {
       bv.set(prime * primecopy);
       primecopy++;
     }
-    while (prime + 1 < (compile_time_size - 1) && bv[++prime]);
+    while (prime + 1 < (compile_time_size - 1) && bv[++prime])
+      ;
     running_count++;
   }
   return running_count;

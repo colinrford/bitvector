@@ -1,10 +1,9 @@
-# helper macro to add unit tests
-macro(lam_add_unit_test name source)
-  add_executable(${name} ${source})
-  target_compile_features(${name} PRIVATE cxx_std_23)
-  target_link_libraries(${name} PRIVATE bitvector)
+# Unit tests. bitvector_add_executable (cmake/BitvectorHelpers.cmake) handles the
+# module-consumer boilerplate; this just names each test and registers it.
+function(lam_add_unit_test name source)
+  bitvector_add_executable(${name} SOURCE ${source})
   add_test(NAME ${name} COMMAND ${name})
-endmacro()
+endfunction()
 
 # Core Tests
 lam_add_unit_test(core_construction_test unit/core_construction_test.cpp)

@@ -11,7 +11,6 @@ using lam::bitvec::bitvector;
 
 int main()
 {
-  constexpr std::uint64_t firstprime = 2;
   constexpr std::uint64_t num_bits = 10000000;
 
   // Helper to count primes from sieve result

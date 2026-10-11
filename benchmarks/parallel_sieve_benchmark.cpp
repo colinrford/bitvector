@@ -10,7 +10,7 @@ import lam.bitvector;
 using lam::bitvec::bitvector;
 
 constexpr std::uint64_t N = 100'000'000;
-constexpr int NUM_THREADS = 8;
+constexpr std::size_t NUM_THREADS = 8;
 constexpr int ITERATIONS = 3;
 
 template<typename Word = std::uint64_t, typename Allocator = std::allocator<Word>>
@@ -99,7 +99,7 @@ void benchmark_parallel_std_allocator()
 
     std::uint64_t segment_size = (N - sqrt_n - 1) / NUM_THREADS;
 
-    for (int t = 0; t < NUM_THREADS; ++t)
+    for (std::size_t t = 0; t < NUM_THREADS; ++t)
     {
       std::uint64_t low = sqrt_n + 1 + t * segment_size;
       std::uint64_t high = (t == NUM_THREADS - 1) ? N : low + segment_size;
@@ -143,7 +143,7 @@ void benchmark_parallel_pmr_thread_local()
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
-    for (int t = 0; t < NUM_THREADS; ++t)
+    for (std::size_t t = 0; t < NUM_THREADS; ++t)
     {
       std::uint64_t low = sqrt_n + 1 + t * segment_size;
       std::uint64_t high = (t == NUM_THREADS - 1) ? N : low + segment_size;
@@ -226,7 +226,7 @@ void benchmark_chunked_std_allocator(const char* chunk_name)
 
     std::uint64_t segment_size = (N - sqrt_n - 1) / NUM_THREADS;
 
-    for (int t = 0; t < NUM_THREADS; ++t)
+    for (std::size_t t = 0; t < NUM_THREADS; ++t)
     {
       std::uint64_t low = sqrt_n + 1 + t * segment_size;
       std::uint64_t high = (t == NUM_THREADS - 1) ? N : low + segment_size;
@@ -273,7 +273,7 @@ void benchmark_chunked_pmr(const char* chunk_name)
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
-    for (int t = 0; t < NUM_THREADS; ++t)
+    for (std::size_t t = 0; t < NUM_THREADS; ++t)
     {
       std::uint64_t low = sqrt_n + 1 + t * segment_size;
       std::uint64_t high = (t == NUM_THREADS - 1) ? N : low + segment_size;

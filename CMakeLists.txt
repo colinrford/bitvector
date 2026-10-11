@@ -20,6 +20,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # lam build helpers
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Sanitizers)
+include(Warnings)
 include(LamConstexprLimit)
 # lam_add_config_partition / lam_add_config_dump / lam_install_module_package
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LamModule.cmake)
@@ -49,12 +50,14 @@ target_sources(bitvector
   TYPE CXX_MODULES
   BASE_DIRS ${PROJECT_SOURCE_DIR}/src/cpp
   FILES src/cpp/bitvector.cppm
+        src/cpp/bitvector-concepts.cppm
         src/cpp/bitvector-core.cppm
         src/cpp/bitvector-boolean_ops.cppm
         src/cpp/bitvector-algorithms.cppm
 )
 
 target_compile_features(bitvector PUBLIC cxx_std_23)
+lam_target_warnings(bitvector)
 
 # Generate + attach the lam.bitvector:config partition (build-time git_hash refresh).
 lam_add_config_partition(bitvector NAME bitvector)

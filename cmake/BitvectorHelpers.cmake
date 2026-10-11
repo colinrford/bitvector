@@ -30,6 +30,7 @@ function(bitvector_add_executable NAME)
   add_executable(${NAME} ${ARG_SOURCE})
   target_link_libraries(${NAME} PRIVATE lam::bitvector ${ARG_LIBS})
   target_compile_features(${NAME} PRIVATE cxx_std_23)
+  lam_target_warnings(${NAME})
 
   if(ARG_DEFINES)
     target_compile_definitions(${NAME} PRIVATE ${ARG_DEFINES})

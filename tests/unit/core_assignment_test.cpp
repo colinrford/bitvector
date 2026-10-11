@@ -47,8 +47,8 @@ constexpr bool test_constexpr_assignment()
   if (b.size() != 10)
     return false;
 
-  auto& d_self = std::move(d);
-  d = d_self;
+  auto& d_self = d;
+  d = std::move(d_self);
   if (d.size() != 20)
     return false;
 

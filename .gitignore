@@ -141,3 +141,5 @@ docs/_build/
 # PyBuilder
 target/
 
+# cmake
+CMakeUserPresets.json

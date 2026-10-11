@@ -42,11 +42,13 @@ constexpr bool test_constexpr_assignment()
   if (c.data() != nullptr)
     return false;
 
-  b = b;
+  auto& b_self = b;
+  b = b_self;
   if (b.size() != 10)
     return false;
 
-  d = std::move(d);
+  auto& d_self = std::move(d);
+  d = d_self;
   if (d.size() != 20)
     return false;
 

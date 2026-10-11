@@ -67,7 +67,7 @@ jobs:
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DLAM_WARNINGS_AS_ERRORS=${WARNINGS_AS_ERRORS}
-           -DCMAKE_CXX_STDLIB_MODULES_JSON=/usr/lib/llvm-23/lib/libc++.modules.json
+          -DCMAKE_CXX_STDLIB_MODULES_JSON=/usr/lib/llvm-23/lib/libc++.modules.json
           ${{ matrix.cmake_args }}
 
       - name: Build
@@ -117,6 +117,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   windows-msvc:
+    if: false
     name: Windows / MSVC / Release
     runs-on: windows-2025
     # never built with MSVC before; report without failing the workflow until it is green

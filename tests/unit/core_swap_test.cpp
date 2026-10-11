@@ -1,5 +1,5 @@
 /*
- *  core_swap_test.cpp – written by Colin Ford
+ *  core_swap_test.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  *  unit test for bitvector core swap

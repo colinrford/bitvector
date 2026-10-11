@@ -1,5 +1,5 @@
 /*
- *  core_print_test.cpp – written by Colin Ford
+ *  core_print_test.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  *  unit test for bitvector printing
@@ -12,12 +12,11 @@ using namespace lam::bitvec;
 
 int main()
 {
-  bitvector<> fmt_bv(4); // 0000
-  fmt_bv.set(1);         // 0010
-  fmt_bv.set(3);         // 1010  (bit 3 and 1 set)
+  bitvector<> fmt_bv(4);
+  fmt_bv.set(1);
+  fmt_bv.set(3);
 
-  // Format string check
-  // Indices: 0->0, 1->1, 2->0, 3->1. result "0101"
+  // index 0 prints first
   std::string s = std::format("{}", fmt_bv);
   if (s != "0101")
     return 1;

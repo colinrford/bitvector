@@ -5,10 +5,19 @@ function(lam_add_unit_test name source)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+# Concepts Tests
+lam_add_unit_test(concepts_test unit/concepts_test.cpp)
 # Core Tests
 lam_add_unit_test(core_construction_test unit/core_construction_test.cpp)
 lam_add_unit_test(core_assignment_test   unit/core_assignment_test.cpp)
 lam_add_unit_test(core_allocator_test    unit/core_allocator_test.cpp)
+lam_add_unit_test(core_move_alloc_probe_test unit/core_move_alloc_probe_test.cpp)
+# only detects anything under ASan
+if(LAM_ENABLE_ASAN)
+  lam_add_unit_test(core_move_pmr_asan_probe_test unit/core_move_pmr_asan_probe_test.cpp)
+  set_tests_properties(core_move_pmr_asan_probe_test PROPERTIES
+    ENVIRONMENT "ASAN_OPTIONS=detect_container_overflow=0")
+endif()
 lam_add_unit_test(core_print_test        unit/core_print_test.cpp)
 lam_add_unit_test(core_metadata_test     unit/core_metadata_test.cpp)
 lam_add_unit_test(core_access_test       unit/core_access_test.cpp)
@@ -24,3 +33,4 @@ lam_add_unit_test(ops_boolean_test       unit/ops_boolean_test.cpp)
 lam_add_unit_test(secure_allocator_test  unit/secure_allocator_test.cpp)
 lam_add_unit_test(alias_test             unit/alias_test.cpp)
 lam_add_unit_test(sieve_test             unit/sieve_test.cpp)
+lam_add_unit_test(sieve_atkin_test       unit/sieve_atkin_test.cpp)

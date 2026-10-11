@@ -1,5 +1,5 @@
 /*
- *  core_access_test.cpp – written by Colin Ford
+ *  core_access_test.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  *  unit test for bitvector core access
@@ -23,7 +23,6 @@ constexpr bool test_constexpr_access()
   if (!bv.get(63) || !bv[63])
     return false;
 
-  // Test proxy assignment
   bv[1] = true;
   if (!bv.get(1))
     return false;
@@ -41,7 +40,6 @@ int main()
 {
   bitvector<> bv(128);
 
-  // Test 1: get() bounds check
   try
   {
     (void)bv.get(128); // out of bounds
@@ -52,7 +50,6 @@ int main()
     // expected
   }
 
-  // Test 2: set() and get() consistency
   bv.set(10);
   bv.set(100);
 
@@ -63,13 +60,11 @@ int main()
   if (bv.get(0))
     return 1;
 
-  // Test 3: Proxy access
   if (bv[10] != true)
     return 1;
 
   if (bv[0] != false)
     return 1;
-  // Test 4: Proxy modification
   bv[50] = true;
   if (!bv.get(50))
     return 1;
@@ -78,14 +73,12 @@ int main()
   if (bv.get(10))
     return 1;
 
-  // Test 5: Proxy to proxy assignment
   bv[10] = true;
   bv[50] = false;
   bv[50] = bv[10];
   if (!bv.get(50))
     return 1;
 
-  // Test 6: operator~ on proxy
   bv[0] = false;
   if (~bv[0] != true)
     return 1;

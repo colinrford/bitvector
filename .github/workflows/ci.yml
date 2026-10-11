@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # must have a rung in cmake/LamCxxModuleStd.cmake
+  CMAKE_VERSION: 4.4.4
+  NINJA_VERSION: 1.13.2
+  WARNINGS_AS_ERRORS: "OFF"
+
+jobs:
+  linux-clang:
+    name: Linux / Clang 23 libc++ / ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debug
+            build_type: Debug
+          - name: Release
+            build_type: Release
+          - name: ASan + UBSan
+            build_type: Debug
+            cxxflags: -fno-sanitize-recover=undefined
+            cmake_args: -DLAM_ENABLE_ASAN=ON -DLAM_ENABLE_UBSAN=ON
+    env:
+      CC: clang-23
+      CXX: clang++-23
+      CXXFLAGS: -stdlib=libc++ ${{ matrix.cxxflags }}
+      LDFLAGS: -stdlib=libc++
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Clang 23 and libc++
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm-23.list
+          sudo apt-get update
+          sudo apt-get install -y clang-23 clang-tools-23 libc++-23-dev libc++abi-23-dev libclang-rt-23-dev
+
+      - name: Install CMake and Ninja
+        run: |
+          cmake_dir="cmake-${CMAKE_VERSION}-linux-x86_64"
+          curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${cmake_dir}.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          curl -fsSL -o "$RUNNER_TEMP/ninja.zip" "https://github.com/ninja-build/ninja/releases/download/v${NINJA_VERSION}/ninja-linux.zip"
+          unzip -q "$RUNNER_TEMP/ninja.zip" -d "$RUNNER_TEMP/${cmake_dir}/bin"
+          echo "$RUNNER_TEMP/${cmake_dir}/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLAM_WARNINGS_AS_ERRORS=${WARNINGS_AS_ERRORS}
+          -DCMAKE_CXX_STDLIB_MODULES_JSON=/usr/lib/llvm-23/lib/libc++.modules.json
+          ${{ matrix.cmake_args }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  linux-gcc:
+    name: Linux / GCC 16 libstdc++ / ${{ matrix.build_type }}
+    runs-on: ubuntu-24.04
+    # upstream GCC image: Ubuntu's own packages ship a broken libstdc++.modules.json before 26.04
+    container: gcc:16.2
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install unzip
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends unzip
+
+      - name: Install CMake and Ninja
+        run: |
+          cmake_dir="cmake-${CMAKE_VERSION}-linux-x86_64"
+          curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${cmake_dir}.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          curl -fsSL -o "$RUNNER_TEMP/ninja.zip" "https://github.com/ninja-build/ninja/releases/download/v${NINJA_VERSION}/ninja-linux.zip"
+          unzip -q "$RUNNER_TEMP/ninja.zip" -d "$RUNNER_TEMP/${cmake_dir}/bin"
+          echo "$RUNNER_TEMP/${cmake_dir}/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DLAM_WARNINGS_AS_ERRORS=${WARNINGS_AS_ERRORS}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  windows-msvc:
+    if: false
+    name: Windows / MSVC / Release
+    runs-on: windows-2025
+    # never built with MSVC before; report without failing the workflow until it is green
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install CMake and Ninja
+        shell: pwsh
+        run: |
+          $cmakeDir = "cmake-$env:CMAKE_VERSION-windows-x86_64"
+          Invoke-WebRequest "https://github.com/Kitware/CMake/releases/download/v$env:CMAKE_VERSION/$cmakeDir.zip" -OutFile "$env:RUNNER_TEMP\cmake.zip"
+          Expand-Archive "$env:RUNNER_TEMP\cmake.zip" -DestinationPath "$env:RUNNER_TEMP"
+          Invoke-WebRequest "https://github.com/ninja-build/ninja/releases/download/v$env:NINJA_VERSION/ninja-win.zip" -OutFile "$env:RUNNER_TEMP\ninja.zip"
+          Expand-Archive "$env:RUNNER_TEMP\ninja.zip" -DestinationPath "$env:RUNNER_TEMP\$cmakeDir\bin"
+          "$env:RUNNER_TEMP\$cmakeDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # one step: the MSVC environment from vcvars64 does not carry across steps
+      - name: Configure, build, test
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSROOT=%%i"
+          call "%VSROOT%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DLAM_BITVECTOR_BUILD_BENCHMARKS=OFF -DLAM_BITVECTOR_BUILD_EXAMPLES=OFF || exit /b 1
+          cmake --build build || exit /b 1
+          ctest --test-dir build --output-on-failure

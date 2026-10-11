@@ -62,12 +62,12 @@ void run_comparison()
 
   auto start_custom = std::chrono::steady_clock::now();
   for (int i = 0; i < iterations; ++i)
-    volatile auto v = run_custom();
+    [[maybe_unused]] volatile auto v = run_custom();
   auto end_custom = std::chrono::steady_clock::now();
 
   auto start_std = std::chrono::steady_clock::now();
   for (int i = 0; i < iterations; ++i)
-    volatile auto v = run_std();
+    [[maybe_unused]] volatile auto v = run_std();
   auto end_std = std::chrono::steady_clock::now();
 
   auto dur_custom = std::chrono::duration<double, std::milli>(end_custom - start_custom).count() / iterations;

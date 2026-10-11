@@ -3,7 +3,6 @@
 # heavy compile-time benchmarks.
 
 bitvector_add_executable(bitvector_benchmark    SOURCE benchmark.cpp)
-bitvector_add_executable(allocator_benchmark    SOURCE allocator_benchmark.cpp)
 bitvector_add_executable(parallel_sieve_benchmark SOURCE parallel_sieve_benchmark.cpp)
 
 bitvector_add_executable(bench_compile_custom
@@ -17,6 +16,7 @@ endif()
 # lam.bitvector, so it stays a plain target rather than going through the helper.
 add_executable(bench_compile_std bench_compile_std.cpp)
 target_compile_features(bench_compile_std PRIVATE cxx_std_23)
+lam_target_warnings(bench_compile_std)
 lam_target_constexpr_limit(bench_compile_std 900000000)
 if(TEST_SIZE)
   target_compile_definitions(bench_compile_std PRIVATE TEST_SIZE=${TEST_SIZE})

@@ -1,5 +1,5 @@
 /*
- *  bench_compile_custom.cpp – written by Colin Ford
+ *  bench_compile_custom.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  */
@@ -64,7 +64,6 @@ constexpr std::uint64_t get_expected_count(std::uint64_t n)
   return 0; // Unknown size
 }
 
-// Verification
 constexpr auto verify_count = []() {
   auto actual = run_sieve();
   auto expected = get_expected_count(compile_time_size);

@@ -7,6 +7,7 @@
 
 export module lam.bitvector;
 
+export import :concepts;
 export import :core;
 export import :boolean_ops;
 export import :algorithms;
@@ -15,5 +16,5 @@ export import :config;
 export namespace lam
 {
 using bitvec::bitvector;
-using bitvec::bitvector_allocator_c;
+using bitvec::word_allocator_c;
 } // namespace lam

@@ -1,5 +1,5 @@
 /*
- *  core_assignment_test.cpp – written by Colin Ford
+ *  core_assignment_test.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  *  unit test for bitvector assignment
@@ -12,12 +12,11 @@ using namespace lam::bitvec;
 
 constexpr bool test_constexpr_assignment()
 {
-  // Test Copy Assignment
   bitvector<> a(10);
   a.set(1);
 
   bitvector<> b(5);
-  b = a; // Copy
+  b = a;
 
   if (b.size() != 10)
     return false;
@@ -28,7 +27,6 @@ constexpr bool test_constexpr_assignment()
   if (!a.get(1))
     return false;
 
-  // Test Move Assignment
   bitvector<> c(20);
   c.set(5);
   bitvector<> d;
@@ -39,18 +37,15 @@ constexpr bool test_constexpr_assignment()
   if (!d.get(5))
     return false;
 
-  // c should be in valid indeterminate or empty state.
   if (c.size() != 0)
     return false;
   if (c.data() != nullptr)
     return false;
 
-  // Test Self-Assignment (Copy)
   b = b;
   if (b.size() != 10)
     return false;
 
-  // Test Self-Assignment (Move)
   d = std::move(d);
   if (d.size() != 20)
     return false;
@@ -62,7 +57,6 @@ static_assert(test_constexpr_assignment());
 
 int main()
 {
-  // Runtime assignment checks
   bitvector<> a(100);
   a.set_all();
 
@@ -74,7 +68,6 @@ int main()
   if (b.count() != 100)
     return 1;
 
-  // Move assignment
   bitvector<> c;
   c = std::move(b);
 
@@ -84,7 +77,7 @@ int main()
     return 1;
 
   if (b.size() != 0)
-    return 1; // implementation clear source
+    return 1;
 
   return 0;
 }

@@ -1,5 +1,5 @@
 /*
- *  parallel_sieve_benchmark.cpp – written by Colin Ford
+ *  parallel_sieve_benchmark.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  */
@@ -9,62 +9,49 @@ import lam.bitvector;
 
 using lam::bitvec::bitvector;
 
-// Configuration
-constexpr std::uint64_t N = 100'000'000; // Total range
+constexpr std::uint64_t N = 100'000'000;
 constexpr int NUM_THREADS = 8;
 constexpr int ITERATIONS = 3;
 
-// =============================================================================
-// Segmented Sieve Algorithm
-// =============================================================================
-
-// Compute base primes up to sqrt(N) using simple sieve
-template<typename Allocator = std::allocator<std::uint64_t>>
-std::vector<std::uint64_t> sieve_base_primes(std::uint64_t limit, const Allocator& alloc = Allocator())
+template<typename Word = std::uint64_t, typename Allocator = std::allocator<Word>>
+std::vector<Word> sieve_base_primes(Word limit, const Allocator& alloc = Allocator())
 {
   auto is_composite = lam::bitvec::sieve_of_eratosthenes(limit + 1, alloc);
-  std::vector<std::uint64_t> primes;
+  std::vector<Word> primes;
 
-  for (std::uint64_t p = 2; p <= limit; ++p)
+  for (Word p = 2; p <= limit; ++p)
     if (!is_composite[p])
       primes.push_back(p);
 
   return primes;
 }
 
-// Sieve a segment [low, high) using pre-computed base primes
-template<typename Allocator = std::allocator<std::uint64_t>>
-std::uint64_t sieve_segment(std::uint64_t low, std::uint64_t high, const std::vector<std::uint64_t>& base_primes,
+template<typename Word = std::uint64_t, typename Allocator = std::allocator<Word>>
+Word sieve_segment(Word low, Word high, const std::vector<Word>& base_primes,
                             const Allocator& alloc = Allocator())
 {
-  std::uint64_t segment_size = high - low;
-  bitvector<Allocator> is_composite(segment_size, alloc);
+  Word segment_size = high - low;
+  bitvector<Word, Allocator> is_composite(segment_size, alloc);
 
-  // Mark composites in this segment
-  for (std::uint64_t p : base_primes)
+  for (Word p : base_primes)
   {
     // Find first multiple of p >= low
-    std::uint64_t start = ((low + p - 1) / p) * p;
+    Word start = ((low + p - 1) / p) * p;
     if (start == p)
       start = p * p; // Don't mark prime itself
     if (start < low)
       start += p;
 
-    for (std::uint64_t m = start; m < high; m += p)
+    for (Word m = start; m < high; m += p)
       is_composite.set(m - low);
   }
 
-  // Count primes in segment
-  std::uint64_t count = 0;
-  for (std::uint64_t i = 0; i < segment_size; ++i)
+  Word count = 0;
+  for (Word i = 0; i < segment_size; ++i)
     if (!is_composite[i] && (low + i) >= 2) // 0 and 1 are not prime
       ++count;
   return count;
 }
-
-// =============================================================================
-// Benchmarks
-// =============================================================================
 
 void benchmark_sequential()
 {
@@ -78,7 +65,7 @@ void benchmark_sequential()
 
   for (int iter = 0; iter < ITERATIONS; ++iter)
   {
-    total_count = base_primes.size(); // Count base primes
+    total_count = base_primes.size();
     total_count += sieve_segment(sqrt_n + 1, N, base_primes);
   }
 
@@ -108,7 +95,7 @@ void benchmark_parallel_std_allocator()
   for (int iter = 0; iter < ITERATIONS; ++iter)
   {
     std::vector<std::jthread> threads;
-    std::vector<PaddedCount> counts(NUM_THREADS); // Cache-line padded
+    std::vector<PaddedCount> counts(NUM_THREADS);
 
     std::uint64_t segment_size = (N - sqrt_n - 1) / NUM_THREADS;
 
@@ -154,7 +141,7 @@ void benchmark_parallel_pmr_thread_local()
   for (int iter = 0; iter < ITERATIONS; ++iter)
   {
     std::vector<std::jthread> threads;
-    std::vector<PaddedCount> counts(NUM_THREADS); // Cache-line padded
+    std::vector<PaddedCount> counts(NUM_THREADS);
 
     for (int t = 0; t < NUM_THREADS; ++t)
     {
@@ -162,7 +149,6 @@ void benchmark_parallel_pmr_thread_local()
       std::uint64_t high = (t == NUM_THREADS - 1) ? N : low + segment_size;
 
       threads.emplace_back([&, t, low, high]() {
-        // Each thread gets its own arena - zero contention!
         std::pmr::monotonic_buffer_resource pool(thread_buffers[t].data(), thread_buffers[t].size(),
                                                  std::pmr::null_memory_resource());
         std::pmr::polymorphic_allocator<std::uint64_t> alloc(&pool);
@@ -185,14 +171,9 @@ void benchmark_parallel_pmr_thread_local()
   std::println("Time: {:.2f} ms\n", avg_ms);
 }
 
-// =============================================================================
-// Chunked Allocation Benchmark - Cache-sized chunks
-// =============================================================================
-
-// Chunk sizes to test (bits)
-constexpr std::size_t CHUNK_32KB = 32 * 1024 * 8;   // 32KB = 256K bits (L1 data cache)
-constexpr std::size_t CHUNK_64KB = 64 * 1024 * 8;   // 64KB = 512K bits (total L1 cache)
-constexpr std::size_t CHUNK_256KB = 256 * 1024 * 8; // 256KB = 2M bits (L2 cache)
+constexpr std::size_t CHUNK_32KB = 32 * 1024 * 8;
+constexpr std::size_t CHUNK_64KB = 64 * 1024 * 8;
+constexpr std::size_t CHUNK_256KB = 256 * 1024 * 8;
 
 template<std::size_t CHUNK_BITS, typename Allocator = std::allocator<std::uint64_t>>
 std::uint64_t sieve_segment_chunked(std::uint64_t low, std::uint64_t high,
@@ -205,7 +186,7 @@ std::uint64_t sieve_segment_chunked(std::uint64_t low, std::uint64_t high,
     std::uint64_t chunk_high = std::min(chunk_low + CHUNK_BITS, high);
     std::uint64_t chunk_size = chunk_high - chunk_low;
 
-    bitvector<Allocator> is_composite(chunk_size, alloc);
+    bitvector<std::uint64_t, Allocator> is_composite(chunk_size, alloc);
 
     for (std::uint64_t p : base_primes)
     {
@@ -334,14 +315,14 @@ int main()
 
   std::println("=== Chunked Allocation Tests ===\n");
 
-  benchmark_chunked_std_allocator<CHUNK_32KB>("32KB / L1 data cache");
-  benchmark_chunked_pmr<CHUNK_32KB>("32KB / L1 data cache");
+  benchmark_chunked_std_allocator<CHUNK_32KB>("32KB chunks");
+  benchmark_chunked_pmr<CHUNK_32KB>("32KB chunks");
 
-  benchmark_chunked_std_allocator<CHUNK_64KB>("64KB / total L1 cache");
-  benchmark_chunked_pmr<CHUNK_64KB>("64KB / total L1 cache");
+  benchmark_chunked_std_allocator<CHUNK_64KB>("64KB chunks");
+  benchmark_chunked_pmr<CHUNK_64KB>("64KB chunks");
 
-  benchmark_chunked_std_allocator<CHUNK_256KB>("256KB / L2 cache");
-  benchmark_chunked_pmr<CHUNK_256KB>("256KB / L2 cache");
+  benchmark_chunked_std_allocator<CHUNK_256KB>("256KB chunks");
+  benchmark_chunked_pmr<CHUNK_256KB>("256KB chunks");
 
   std::println("=== Done ===");
 }

@@ -1,5 +1,5 @@
 /*
- *  benchmark.cpp – written by Colin Ford
+ *  benchmark.cpp – Colin Ford
  *    see github.com/colinrford/bitvector
  *    currently unlicensed
  */
@@ -11,7 +11,6 @@ using lam::bitvec::bitvector;
 
 constexpr int iterations = 5;
 
-// Generic Sieve Implementation
 template<std::uint64_t N, typename BitSet>
 void run_sieve(BitSet& bv)
 {
@@ -20,14 +19,9 @@ void run_sieve(BitSet& bv)
   else if constexpr (requires { bv.clear_bv(); })
     bv.clear_bv();
 
-  // 0 and 1 are ignored (assumed 0/prime-like in bitset state)
-  // Sieve marks composites starting from 4
-
   for (std::uint64_t p = 2; p * p < N; ++p)
   {
     bool is_prime = false;
-    // Check if p is prime (bit not set)
-    // std::bitset and bitvector interface access
     if constexpr (requires { bv.test(p); })
       is_prime = !bv.test(p);
     else
@@ -46,21 +40,18 @@ void run_comparison()
 {
   std::println("--- Benchmarking N = {} ---", N);
 
-  // Custom Lambda
   auto run_custom = []() {
     auto bv = lam::bitvec::sieve_of_eratosthenes(N);
     // Count primes: (N-2) - composites
     return (N - 2) - bv.count();
   };
 
-  // Std Lambda
   auto run_std = []() {
-    std::bitset<N> bv; // Stack allocation might fail for huge N
+    std::bitset<N> bv;
     run_sieve<N>(bv);
     return (N - 2) - bv.count();
   };
 
-  // Validation
   auto count = run_custom();
   if (count != run_std())
   {
@@ -69,13 +60,11 @@ void run_comparison()
   }
   std::println("Count for N={}: {}", N, count);
 
-  // Measure Custom
   auto start_custom = std::chrono::steady_clock::now();
   for (int i = 0; i < iterations; ++i)
     volatile auto v = run_custom();
   auto end_custom = std::chrono::steady_clock::now();
 
-  // Measure Std
   auto start_std = std::chrono::steady_clock::now();
   for (int i = 0; i < iterations; ++i)
     volatile auto v = run_std();
@@ -108,13 +97,11 @@ int main()
   auto run_seg_bench = []<std::uint64_t N>() {
     std::println("--- Benchmarking N = {} ---", N);
 
-    // Simple
     auto t1 = std::chrono::steady_clock::now();
     for (int i = 0; i < 3; ++i)
       volatile auto b = lam::bitvec::sieve_of_eratosthenes(N);
     auto t2 = std::chrono::steady_clock::now();
 
-    // Segmented (using default size)
     auto t3 = std::chrono::steady_clock::now();
     for (int i = 0; i < 3; ++i)
       volatile auto b = lam::bitvec::sieve_of_eratosthenes_segmented(N);

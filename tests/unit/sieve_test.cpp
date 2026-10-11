@@ -23,7 +23,6 @@ void check(std::uint64_t n)
   if (simple.count() != segmented.count())
   {
     std::println(std::cerr, "Count mismatch for N={}: {} vs {}", n, simple.count(), segmented.count());
-    // Find first mismatch
     for (std::size_t i = 0; i < n; ++i)
     {
       if (simple[i] != segmented[i])
@@ -54,7 +53,6 @@ int main()
     std::exit(1);
   }
 
-  // Test large
   check(10'000'000);
 
   std::println("All tests passed.");

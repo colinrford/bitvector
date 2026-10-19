@@ -46,8 +46,92 @@ constexpr bool test_constexpr_allocator()
 
 static_assert(test_constexpr_allocator());
 
+// Observe allocation requests without attempting to obtain enormous storage.
+struct allocation_probe
+{
+  using value_type = std::uint64_t;
+  std::size_t* requested;
+  bool* allocated;
+
+  value_type* allocate(std::size_t n)
+  {
+    *requested = n;
+    *allocated = true;
+    throw std::bad_alloc{};
+  }
+
+  void deallocate(value_type*, std::size_t) noexcept {}
+  bool operator==(allocation_probe const&) const = default;
+};
+
+struct oversized_word_range
+{
+  std::size_t count;
+  bool* iterated;
+
+  std::size_t size() const { return count; }
+  std::uint64_t* begin() const
+  {
+    *iterated = true;
+    throw std::logic_error("oversized range must not be iterated");
+  }
+  std::uint64_t* end() const
+  {
+    *iterated = true;
+    throw std::logic_error("oversized range must not be iterated");
+  }
+};
+
+bool test_storage_size_overflow()
+{
+  using bv_type = bitvector<std::uint64_t, allocation_probe>;
+  constexpr auto max_bits = std::numeric_limits<bv_type::size_type>::max();
+  constexpr auto width = bv_type::bits_per_word;
+  // Cover the word boundary immediately below the overflowing addition too.
+  constexpr auto last_full_word = max_bits - max_bits % width;
+
+  for (auto bits : {last_full_word, last_full_word + 1, max_bits})
+  {
+    bv_type::size_type requested = 0;
+    bool allocated = false;
+    try
+    {
+      bv_type bv(bits, allocation_probe{&requested, &allocated});
+      return false;
+    }
+    catch (std::bad_alloc const&)
+    {}
+
+    auto expected = max_bits / width;
+    if (bits != last_full_word)
+      ++expected;
+    if (!allocated || requested != expected)
+      return false;
+  }
+
+  bv_type::size_type requested = 0;
+  bool allocated = false;
+  bool iterated = false;
+  oversized_word_range source{max_bits / width + 1, &iterated};
+  try
+  {
+    bv_type bv(source, allocation_probe{&requested, &allocated});
+    return false;
+  }
+  catch (std::length_error const&)
+  {}
+  catch (std::exception const&)
+  {
+    return false;
+  }
+  return !allocated && !iterated;
+}
+
 int main()
 {
+  if (!test_storage_size_overflow())
+    return 1;
+
   using alloc_t = stateful_allocator<std::uint64_t>;
 
   alloc_t a1(101);

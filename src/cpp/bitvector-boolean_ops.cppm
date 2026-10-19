@@ -15,7 +15,7 @@ namespace lam::bitvec
 namespace stdv = std::views;
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>
 operator&(bitvector<Word, Allocator> const& lhs,
           bitvector<Word, Allocator> const& rhs)
@@ -38,7 +38,7 @@ operator&(bitvector<Word, Allocator> const& lhs,
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>
 operator|(bitvector<Word, Allocator> const& lhs,
           bitvector<Word, Allocator> const& rhs)
@@ -62,7 +62,7 @@ operator|(bitvector<Word, Allocator> const& lhs,
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>
 operator^(bitvector<Word, Allocator> const& lhs,
           bitvector<Word, Allocator> const& rhs)
@@ -86,7 +86,7 @@ operator^(bitvector<Word, Allocator> const& lhs,
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>
 operator~(bitvector<Word, Allocator> const& bv)
 {
@@ -109,7 +109,7 @@ operator~(bitvector<Word, Allocator> const& bv)
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>&
 operator&=(bitvector<Word, Allocator>& lhs,
            bitvector<Word, Allocator> const& rhs)
@@ -127,7 +127,7 @@ operator&=(bitvector<Word, Allocator>& lhs,
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>&
 operator|=(bitvector<Word, Allocator>& lhs,
            bitvector<Word, Allocator> const& rhs)
@@ -145,7 +145,7 @@ operator|=(bitvector<Word, Allocator>& lhs,
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
+template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>&
 operator^=(bitvector<Word, Allocator>& lhs,
            bitvector<Word, Allocator> const& rhs)

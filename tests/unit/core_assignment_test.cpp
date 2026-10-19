@@ -88,8 +88,44 @@ constexpr bool test_copy_assignment_boundaries()
 
 static_assert(test_copy_assignment_boundaries());
 
+constexpr bool test_move_assignment_boundaries()
+{
+  bitvector<> source(100);
+  source.set(99);
+  bitvector<> dest(10);
+  dest.set_all();
+  if (&(dest = std::move(source)) != &dest
+      || dest.size() != 100 || dest.count() != 1 || !dest.get(99)
+      || source.size() != 0 || !source.words().empty())
+    return false;
+
+  auto& self = dest;
+  dest = std::move(self);
+  if (dest.size() != 100 || dest.count() != 1 || !dest.get(99))
+    return false;
+
+  // A moved-from object remains assignable.
+  source = std::move(dest);
+  if (source.size() != 100 || !source.get(99)
+      || dest.size() != 0 || !dest.words().empty())
+    return false;
+
+  bitvector<> empty;
+  source = std::move(empty);
+  if (source.size() != 0 || !source.words().empty()
+      || empty.size() != 0 || !empty.words().empty())
+    return false;
+  dest = std::move(empty);
+  return dest.size() == 0 && dest.words().empty();
+}
+
+static_assert(test_move_assignment_boundaries());
+
 int main()
 {
+  if (!test_move_assignment_boundaries())
+    return 1;
+
   if (!test_copy_assignment_boundaries())
     return 1;
 

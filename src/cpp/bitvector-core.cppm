@@ -48,7 +48,7 @@ public:
     {}
 
   public:
-    constexpr bit_proxy(const bit_proxy&) = default;
+    constexpr bit_proxy(bit_proxy const&) = default;
     constexpr bit_proxy(bit_proxy&&) = default;
     constexpr ~bit_proxy() = default;
 
@@ -70,7 +70,7 @@ private:
   constexpr void deallocate_storage();
 
 public:
-  constexpr explicit bitvector(size_type num_bits, const Allocator& alloc = Allocator());
+  constexpr explicit bitvector(size_type num_bits, Allocator const& alloc = Allocator());
   constexpr bitvector(size_type num_bits, uninitialized_t, Allocator const& alloc = Allocator());
 
   template<word_source_c<word_type> Range>
@@ -83,7 +83,15 @@ public:
   constexpr bitvector(bitvector&& other) noexcept;
 
   constexpr bitvector& operator=(bitvector const& other);
-  constexpr bitvector& operator=(bitvector&& other) noexcept;
+  constexpr bitvector& operator=(bitvector&& other)
+    noexcept(
+      std::allocator_traits<Allocator>
+         ::propagate_on_container_move_assignment
+         ::value ||
+      std::allocator_traits<Allocator>
+         ::is_always_equal
+         ::value
+    );
 
   [[nodiscard]] constexpr bool get(size_type index) const;
   constexpr bool operator[](size_type index) const;
@@ -139,10 +147,30 @@ public:
   friend constexpr bitvector<W, A>&
   operator^=(bitvector<W, A>& lhs, bitvector<W, A> const& rhs);
 
-  friend void swap(bitvector& a, bitvector& b) noexcept
+  friend void swap(bitvector& a, bitvector& b)
+    noexcept(
+      std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
+      std::allocator_traits<Allocator>::is_always_equal::value
+    )
   {
+    constexpr bool pocs = std::allocator_traits<Allocator>
+                             ::propagate_on_container_swap
+                             ::value;
+    constexpr bool is_always_equal = std::allocator_traits<Allocator>
+                                        ::is_always_equal
+                                        ::value;
     using std::swap;
-    swap(a.m_alloc, b.m_alloc);
+
+    if constexpr (pocs)
+      swap(a.m_alloc, b.m_alloc);
+    else if constexpr (!is_always_equal)
+    {
+      if (a.m_alloc != b.m_alloc)
+        throw std::invalid_argument(
+          "bitvector::swap unequal nonpropagating allocators"
+        );
+    }
+
     swap(a.m_data, b.m_data);
     swap(a.m_num_bits, b.m_num_bits);
     swap(a.m_capacity_words, b.m_capacity_words);
@@ -339,7 +367,14 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>&
-bitvector<Word, Allocator>::operator=(bitvector&& other) noexcept
+bitvector<Word, Allocator>::operator=(bitvector&& other)
+  noexcept(std::allocator_traits<Allocator>
+              ::propagate_on_container_move_assignment
+              ::value ||
+           std::allocator_traits<Allocator>
+              ::is_always_equal
+              ::value
+  )
 {
   if (this == &other)
     return *this;
@@ -347,35 +382,48 @@ bitvector<Word, Allocator>::operator=(bitvector&& other) noexcept
   constexpr bool pocma = std::allocator_traits<Allocator>
                             ::propagate_on_container_move_assignment
                             ::value;
+  constexpr bool always_equal = std::allocator_traits<Allocator>
+                                   ::is_always_equal
+                                   ::value;
 
-  if (pocma || m_alloc == other.m_alloc)
+  if constexpr (!pocma && !always_equal)
   {
-    deallocate_storage();
-    if constexpr (pocma)
-      m_alloc = std::move(other.m_alloc);
-    m_data = other.m_data;
-    m_num_bits = other.m_num_bits;
-    m_capacity_words = other.m_capacity_words;
-
-    other.m_data = nullptr;
-    other.m_num_bits = 0;
-    other.m_capacity_words = 0;
-  }
-  else
-  {
-    // may allocate; under the unconditional noexcept a failure terminates
-    if (m_capacity_words != other.m_capacity_words)
+    if (m_alloc != other.m_alloc)
     {
-      deallocate_storage();
-      m_num_bits = other.m_num_bits;
-      allocate_storage(m_num_bits, false);
-    }
-    else
-      m_num_bits = other.m_num_bits;
+      if (m_capacity_words != other.m_capacity_words)
+      {
+        bitvector replacement(other.m_num_bits, uninitialized, m_alloc);
 
-    if (m_data)
-      std::copy(other.m_data, other.m_data + m_capacity_words, m_data);
+        if (replacement.m_data)
+          std::copy_n(other.m_data,
+                      other.m_capacity_words,
+                      replacement.m_data);
+
+        using std::swap;
+        swap(m_data, replacement.m_data);
+        swap(m_num_bits, replacement.m_num_bits);
+        swap(m_capacity_words, replacement.m_capacity_words);
+      } else
+      {
+        if (m_data)
+          std::copy_n(other.m_data, other.m_capacity_words, m_data);
+
+        m_num_bits = other.m_num_bits;
+      }
+      // source remains unchanged
+      return *this;
+    }
   }
+
+  deallocate_storage();
+
+  if constexpr (pocma)
+    m_alloc = std::move(other.m_alloc);
+
+  m_data = std::exchange(other.m_data, nullptr);
+  m_num_bits = std::exchange(other.m_num_bits, size_type{0});
+  m_capacity_words = std::exchange(other.m_capacity_words, size_type{0});
+
   return *this;
 }
 

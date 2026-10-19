@@ -127,7 +127,7 @@ bool test_storage_size_overflow()
   return !allocated && !iterated;
 }
 
-struct copy_allocation_state
+struct assignment_allocation_state
 {
   std::map<std::uint64_t*, int> owners;
   bool fail = false;
@@ -135,14 +135,15 @@ struct copy_allocation_state
   std::size_t allocations = 0;
 };
 
-template<bool Propagate>
-struct copy_allocator
+template<bool Propagate, bool MovePropagate = false>
+struct assignment_allocator
 {
   using value_type = std::uint64_t;
   using propagate_on_container_copy_assignment = std::bool_constant<Propagate>;
+  using propagate_on_container_move_assignment = std::bool_constant<MovePropagate>;
   using is_always_equal = std::false_type;
 
-  copy_allocation_state* state;
+  assignment_allocation_state* state;
   int domain;
   int metadata;
 
@@ -175,21 +176,21 @@ struct copy_allocator
   }
 
   // Metadata may differ even when allocations are interchangeable.
-  bool operator==(copy_allocator const& other) const
+  bool operator==(assignment_allocator const& other) const
   { return state == other.state && domain == other.domain; }
 };
 
 template<bool Propagate>
 bool test_copy_allocator()
 {
-  using alloc = copy_allocator<Propagate>;
+  using alloc = assignment_allocator<Propagate>;
   using bv = bitvector<std::uint64_t, alloc>;
 
   for (bool equal : {false, true})
     for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
       for (bool fail : {false, true})
       {
-        copy_allocation_state state;
+        assignment_allocation_state state;
         {
           bv source(100, alloc{&state, equal ? 1 : 2, 22});
           source.set(1);
@@ -243,6 +244,151 @@ bool test_copy_allocator()
   return true;
 }
 
+template<bool Propagate>
+bool test_move_allocator()
+{
+  // Opposite copy/move policies catch accidental delegation to copy assignment.
+  using alloc = assignment_allocator<!Propagate, Propagate>;
+  using bv = bitvector<std::uint64_t, alloc>;
+  static_assert(std::is_nothrow_move_assignable_v<bv> == Propagate);
+
+  for (bool equal : {false, true})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+      for (bool fail : {false, true})
+      {
+        assignment_allocation_state state;
+        {
+          int source_domain = equal ? 1 : 2;
+          bv source(100, alloc{&state, source_domain, 22});
+          source.set(1);
+          source.set(99);
+          bv dest(dest_bits, alloc{&state, 1, 11});
+          dest.set(3);
+          auto* source_data = source.words().data();
+          auto* old_data = dest.words().data();
+          auto allocations = state.allocations;
+          bool steals = Propagate || equal;
+          bool needs_allocation = !steals && dest.word_count() != source.word_count();
+          state.fail = fail;
+          bool threw = false;
+          try
+          {
+            if (&(dest = std::move(source)) != &dest)
+              return false;
+          }
+          catch (std::bad_alloc const&)
+          {
+            threw = true;
+          }
+
+          if (threw != (fail && needs_allocation))
+            return false;
+          if (threw)
+          {
+            if (dest.size() != dest_bits || dest.words().data() != old_data
+                || dest.count() != 1 || !dest.get(3)
+                || dest.get_allocator().domain != 1
+                || dest.get_allocator().metadata != 11)
+              return false;
+          }
+          else
+          {
+            if (dest.size() != 100 || dest.count() != 2
+                || !dest.get(1) || !dest.get(99)
+                || dest.get_allocator().domain != (Propagate ? source_domain : 1)
+                || dest.get_allocator().metadata != (Propagate ? 22 : 11)
+                || state.allocations != allocations + (needs_allocation ? 1u : 0u))
+              return false;
+            if (steals && dest.words().data() != source_data)
+              return false;
+            if (!steals && !needs_allocation && dest.words().data() != old_data)
+              return false;
+            dest.clear(99);
+          }
+
+          if (steals)
+          {
+            if (source.size() != 0 || !source.words().empty())
+              return false;
+          }
+          else if (source.size() != 100 || source.words().data() != source_data
+                   || source.count() != 2 || !source.get(1) || !source.get(99))
+            return false;
+        }
+        if (state.foreign_free || !state.owners.empty())
+          return false;
+      }
+  return true;
+}
+
+// Every instance can free every allocation, even when its metadata differs.
+struct always_equal_move_allocator
+{
+  using value_type = std::uint64_t;
+  using propagate_on_container_move_assignment = std::false_type;
+  using is_always_equal = std::true_type;
+  int metadata;
+  inline static bool fail = false;
+
+  value_type* allocate(std::size_t n)
+  {
+    if (fail)
+      throw std::bad_alloc{};
+    return std::allocator<value_type>{}.allocate(n);
+  }
+  void deallocate(value_type* p, std::size_t n) noexcept
+  { std::allocator<value_type>{}.deallocate(p, n); }
+  bool operator==(always_equal_move_allocator const&) const { return true; }
+};
+
+bool test_always_equal_move_assignment()
+{
+  using bv = bitvector<std::uint64_t, always_equal_move_allocator>;
+  static_assert(std::is_nothrow_move_assignable_v<bv>);
+  bv source(100, always_equal_move_allocator{22});
+  source.set(99);
+  bv dest(10, always_equal_move_allocator{11});
+  auto* source_data = source.words().data();
+  always_equal_move_allocator::fail = true;
+  dest = std::move(source);
+  always_equal_move_allocator::fail = false;
+  return dest.size() == 100 && dest.count() == 1 && dest.get(99)
+      && dest.words().data() == source_data && dest.get_allocator().metadata == 11
+      && source.size() == 0 && source.words().empty();
+}
+
+bool test_pmr_move_assignment()
+{
+  std::pmr::unsynchronized_pool_resource source_resource;
+  std::pmr::unsynchronized_pool_resource dest_resource;
+  using alloc = std::pmr::polymorphic_allocator<std::uint64_t>;
+  using bv = bitvector<std::uint64_t, alloc>;
+  static_assert(!std::is_nothrow_move_assignable_v<bv>);
+  for (bool equal : {false, true})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+    {
+      auto* resource = equal ? &dest_resource : &source_resource;
+      bv source(100, alloc{resource});
+      source.set(99);
+      auto* source_data = source.words().data();
+      bv dest(dest_bits, alloc{&dest_resource});
+      dest.set_all();
+      dest = std::move(source);
+      if (dest.get_allocator().resource() != &dest_resource
+          || dest.size() != 100 || dest.count() != 1 || !dest.get(99))
+        return false;
+      dest.clear(99);
+      if (equal)
+      {
+        if (dest.words().data() != source_data || source.size() != 0 || !source.words().empty())
+          return false;
+      }
+      else if (source.size() != 100 || source.count() != 1 || !source.get(99))
+        return false;
+    }
+  return true;
+}
+
 bool test_pmr_copy_assignment()
 {
   std::pmr::unsynchronized_pool_resource source_resource;
@@ -267,6 +413,13 @@ bool test_pmr_copy_assignment()
 
 int main()
 {
+  if (!test_move_allocator<false>() || !test_move_allocator<true>()
+      || !test_always_equal_move_assignment() || !test_pmr_move_assignment())
+  {
+    std::println(std::cerr, "move assignment allocator tests failed");
+    return 1;
+  }
+
   if (!test_copy_allocator<false>() || !test_copy_allocator<true>()
       || !test_pmr_copy_assignment())
     return 1;

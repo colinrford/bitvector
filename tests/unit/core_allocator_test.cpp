@@ -127,8 +127,150 @@ bool test_storage_size_overflow()
   return !allocated && !iterated;
 }
 
+struct copy_allocation_state
+{
+  std::map<std::uint64_t*, int> owners;
+  bool fail = false;
+  bool foreign_free = false;
+  std::size_t allocations = 0;
+};
+
+template<bool Propagate>
+struct copy_allocator
+{
+  using value_type = std::uint64_t;
+  using propagate_on_container_copy_assignment = std::bool_constant<Propagate>;
+  using is_always_equal = std::false_type;
+
+  copy_allocation_state* state;
+  int domain;
+  int metadata;
+
+  value_type* allocate(std::size_t n)
+  {
+    if (state->fail)
+      throw std::bad_alloc{};
+    auto* p = std::allocator<value_type>{}.allocate(n);
+    try
+    {
+      state->owners.emplace(p, domain);
+    }
+    catch (...)
+    {
+      std::allocator<value_type>{}.deallocate(p, n);
+      throw;
+    }
+    ++state->allocations;
+    return p;
+  }
+
+  void deallocate(value_type* p, std::size_t n) noexcept
+  {
+    auto it = state->owners.find(p);
+    if (it == state->owners.end() || it->second != domain)
+      state->foreign_free = true;
+    if (it != state->owners.end())
+      state->owners.erase(it);
+    std::allocator<value_type>{}.deallocate(p, n);
+  }
+
+  // Metadata may differ even when allocations are interchangeable.
+  bool operator==(copy_allocator const& other) const
+  { return state == other.state && domain == other.domain; }
+};
+
+template<bool Propagate>
+bool test_copy_allocator()
+{
+  using alloc = copy_allocator<Propagate>;
+  using bv = bitvector<std::uint64_t, alloc>;
+
+  for (bool equal : {false, true})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+      for (bool fail : {false, true})
+      {
+        copy_allocation_state state;
+        {
+          bv source(100, alloc{&state, equal ? 1 : 2, 22});
+          source.set(1);
+          source.set(99);
+          bv dest(dest_bits, alloc{&state, 1, 11});
+          dest.set(3);
+          auto* old_data = dest.words().data();
+          auto allocations = state.allocations;
+          bool needs_allocation = dest.word_count() != source.word_count()
+                               || (Propagate && !equal);
+          state.fail = fail;
+          bool threw = false;
+          try
+          {
+            if (&(dest = source) != &dest)
+              return false;
+          }
+          catch (std::bad_alloc const&)
+          {
+            threw = true;
+          }
+
+          if (threw != (fail && needs_allocation))
+            return false;
+          if (threw)
+          {
+            if (dest.size() != dest_bits || dest.words().data() != old_data
+                || dest.count() != 1 || !dest.get(3)
+                || dest.get_allocator().domain != 1
+                || dest.get_allocator().metadata != 11)
+              return false;
+          }
+          else
+          {
+            if (dest.size() != 100 || dest.count() != 2
+                || !dest.get(1) || !dest.get(99)
+                || dest.get_allocator().domain != (Propagate ? source.get_allocator().domain : 1)
+                || dest.get_allocator().metadata != (Propagate ? 22 : 11))
+              return false;
+            if (state.allocations != allocations + (needs_allocation ? 1u : 0u))
+              return false;
+            dest.clear(99);
+          }
+          if (source.size() != 100 || source.count() != 2
+              || !source.get(1) || !source.get(99))
+            return false;
+        }
+        if (state.foreign_free || !state.owners.empty())
+          return false;
+      }
+  return true;
+}
+
+bool test_pmr_copy_assignment()
+{
+  std::pmr::unsynchronized_pool_resource source_resource;
+  std::pmr::unsynchronized_pool_resource dest_resource;
+  using alloc = std::pmr::polymorphic_allocator<std::uint64_t>;
+  for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+  {
+    bitvector<std::uint64_t, alloc> source(100, alloc{&source_resource});
+    source.set(99);
+    bitvector<std::uint64_t, alloc> dest(dest_bits, alloc{&dest_resource});
+    dest.set_all();
+    dest = source;
+    if (dest.get_allocator().resource() != &dest_resource
+        || dest.size() != 100 || dest.count() != 1 || !dest.get(99))
+      return false;
+    dest.clear(99);
+    if (!source.get(99))
+      return false;
+  }
+  return true;
+}
+
 int main()
 {
+  if (!test_copy_allocator<false>() || !test_copy_allocator<true>()
+      || !test_pmr_copy_assignment())
+    return 1;
+
   if (!test_storage_size_overflow())
     return 1;
 

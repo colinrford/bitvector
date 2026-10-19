@@ -290,33 +290,50 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
   if (this == &other)
     return *this;
 
-  if constexpr (std::allocator_traits<Allocator>
-                   ::propagate_on_container_copy_assignment
-                   ::value)
+  constexpr bool pocca = std::allocator_traits<Allocator>
+                            ::propagate_on_container_copy_assignment
+                            ::value;
+
+  bool incompatible = false;
+  if constexpr (pocca)
+    incompatible = m_alloc != other.m_alloc;
+
+  if (incompatible || m_capacity_words != other.m_capacity_words)
   {
-    if (m_alloc != other.m_alloc)
+    // choose allocator that will own replacement
+    Allocator const& target_alloc = pocca ? other.m_alloc : m_alloc;
+    bitvector replacement(other.m_num_bits, uninitialized, target_alloc);
+
+    if (replacement.m_data)
+      std::copy_n(other.m_data, other.m_capacity_words, replacement.m_data);
+
+    if constexpr (pocca)
     {
-      deallocate_storage();
+      if (incompatible)
+      {
+        // release old storage through old allocator
+        deallocate_storage();
+        m_num_bits = 0;
+      }
       m_alloc = other.m_alloc;
-      m_num_bits = other.m_num_bits;
-      allocate_storage(m_num_bits, false);
-      if (m_data)
-        std::copy(other.m_data, other.m_data + m_capacity_words, m_data);
-      return *this;
     }
-  }
 
-  if (m_capacity_words != other.m_capacity_words)
+    using std::swap;
+    swap(m_data, replacement.m_data);
+    swap(m_num_bits, replacement.m_num_bits);
+    swap(m_capacity_words, replacement.m_capacity_words);
+  } else
   {
-    deallocate_storage();
-    m_num_bits = other.m_num_bits;
-    allocate_storage(m_num_bits, false);
-  }
-  else
-    m_num_bits = other.m_num_bits;
+    // reuse storage
+    if constexpr (pocca)
+      m_alloc = other.m_alloc;
 
-  if (m_data)
-    std::copy(other.m_data, other.m_data + m_capacity_words, m_data);
+    if (m_data)
+      std::copy_n(other.m_data, other.m_capacity_words, m_data);
+
+    m_num_bits = other.m_num_bits;
+  }
+
   return *this;
 }
 

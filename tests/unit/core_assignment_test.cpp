@@ -57,8 +57,42 @@ constexpr bool test_constexpr_assignment()
 
 static_assert(test_constexpr_assignment());
 
+constexpr bool test_copy_assignment_boundaries()
+{
+  bitvector<> source(100);
+  source.set(1);
+  source.set(99);
+  bitvector<> dest(10);
+  dest.set_all();
+
+  if (&(dest = source) != &dest || dest.size() != 100 || dest.count() != 2
+      || !dest.get(1) || !dest.get(99))
+    return false;
+
+  auto& self = dest;
+  dest = self;
+  if (dest.size() != 100 || dest.count() != 2 || !dest.get(99))
+    return false;
+
+  dest.clear(99);
+  if (!source.get(99))
+    return false;
+
+  bitvector<> empty;
+  dest = empty;
+  if (dest.size() != 0 || !dest.words().empty() || dest.count() != 0)
+    return false;
+  empty = dest;
+  return empty.size() == 0 && empty.words().empty();
+}
+
+static_assert(test_copy_assignment_boundaries());
+
 int main()
 {
+  if (!test_copy_assignment_boundaries())
+    return 1;
+
   bitvector<> a(100);
   a.set_all();
 

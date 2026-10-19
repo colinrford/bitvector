@@ -39,7 +39,7 @@ constexpr bool test_constexpr_assignment()
 
   if (c.size() != 0)
     return false;
-  if (c.data() != nullptr)
+  if (!c.words().empty())
     return false;
 
   auto& b_self = b;
@@ -78,7 +78,7 @@ int main()
   if (c.count() != 100)
     return 1;
 
-  if (b.size() != 0)
+  if (b.size() != 0 || !b.words().empty())
     return 1;
 
   return 0;

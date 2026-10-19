@@ -23,13 +23,13 @@ constexpr bool test_constexpr_metadata()
   if (bv.word_count() != 2)
     return false;
 
-  if (bv.data() == nullptr)
+  if (bv.words().empty())
     return false;
 
   const auto& cbv = bv;
-  if (cbv.data() == nullptr)
+  if (cbv.words().empty())
     return false;
-  if (cbv.data() != bv.data())
+  if (cbv.words().data() != bv.words().data())
     return false;
 
   return true;
@@ -46,7 +46,7 @@ int main()
     return 1;
   if (empty.word_count() != 0)
     return 1;
-  if (empty.data() != nullptr)
+  if (!empty.words().empty())
     return 1;
 
   bitvector<> exact(64);
@@ -57,11 +57,11 @@ int main()
   if (over.word_count() != 2)
     return 1;
 
-  if (exact.data() == nullptr)
+  if (exact.words().empty())
     return 1;
 
   const bitvector<> c_over(65);
-  if (c_over.data() == nullptr)
+  if (c_over.words().empty())
     return 1;
 
   return 0;

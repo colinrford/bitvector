@@ -92,8 +92,6 @@ public:
   [[nodiscard]] constexpr size_type length() const;
   [[nodiscard]] constexpr size_type size() const;
 
-  [[nodiscard]] constexpr word_type* data() noexcept;
-  [[nodiscard]] constexpr const word_type* data() const noexcept;
   [[nodiscard]] constexpr size_type word_count() const noexcept;
 
   [[nodiscard]] constexpr size_type count() const noexcept;
@@ -104,16 +102,38 @@ public:
   constexpr void set_all() noexcept;
   constexpr void flip_all() noexcept;
 
-  // defined inline: MSVC C2244 on out-of-class member templates in a module partition
-  // TODO: check dest size against word_count(), then remove data() and befriend the boolean ops
-  template<word_sink_c<word_type> Range>
-  constexpr void export_words(Range&& dest) const
-  { std::ranges::copy_n(m_data, m_capacity_words, std::ranges::begin(std::forward<Range>(dest))); }
+  [[nodiscard]] constexpr std::span<word_type const> words() const
+  { return {m_data, m_capacity_words}; }
 
   constexpr void print() const;
 
-  template<typename A, typename CharT>
-  friend struct std::formatter;
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>
+  operator&(bitvector<W, A> const& lhs, bitvector<W, A> const& rhs);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>
+  operator|(bitvector<W, A> const& lhs, bitvector<W, A> const& rhs);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>
+  operator^(bitvector<W, A> const& lhs, bitvector<W, A> const& rhs);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>
+  operator~(bitvector<W, A> const& bv);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>&
+  operator&=(bitvector<W, A>& lhs, bitvector<W, A> const& rhs);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>&
+  operator|=(bitvector<W, A>& lhs, bitvector<W, A> const& rhs);
+
+  template<word_c W, word_allocator_c<W> A>
+  friend constexpr bitvector<W, A>&
+  operator^=(bitvector<W, A>& lhs, bitvector<W, A> const& rhs);
 
   friend void swap(bitvector& a, bitvector& b) noexcept
   {
@@ -235,7 +255,9 @@ constexpr bitvector<Word, Allocator>::bitvector(const bitvector& other)
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>::bitvector(bitvector&& other) noexcept
-  : m_alloc(std::move(other.m_alloc)), m_data(other.m_data), m_num_bits(other.m_num_bits),
+  : m_alloc(std::move(other.m_alloc)),
+    m_data(other.m_data),
+    m_num_bits(other.m_num_bits),
     m_capacity_words(other.m_capacity_words)
 {
   other.m_data = nullptr;
@@ -363,14 +385,6 @@ constexpr typename bitvector<Word, Allocator>::size_type bitvector<Word, Allocat
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type bitvector<Word, Allocator>::size() const
 { return m_num_bits; }
-
-template<word_c Word, word_allocator_c<Word> Allocator>
-constexpr typename bitvector<Word, Allocator>::word_type* bitvector<Word, Allocator>::data() noexcept
-{ return m_data; }
-
-template<word_c Word, word_allocator_c<Word> Allocator>
-constexpr const typename bitvector<Word, Allocator>::word_type* bitvector<Word, Allocator>::data() const noexcept
-{ return m_data; }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type bitvector<Word, Allocator>::word_count() const noexcept

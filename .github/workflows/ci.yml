@@ -116,6 +116,48 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  macos-llvm:
+    name: macOS / Homebrew LLVM libc++ / Release
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Homebrew LLVM
+        run: brew install llvm
+
+      - name: Install CMake and Ninja
+        run: |
+          cmake_dir="cmake-${CMAKE_VERSION}-macos-universal"
+          curl -fsSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${cmake_dir}.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/ninja"
+          curl -fsSL -o "$RUNNER_TEMP/ninja.zip" "https://github.com/ninja-build/ninja/releases/download/v${NINJA_VERSION}/ninja-mac.zip"
+          unzip -q "$RUNNER_TEMP/ninja.zip" -d "$RUNNER_TEMP/ninja"
+          echo "$RUNNER_TEMP/${cmake_dir}/CMake.app/Contents/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/ninja" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: |
+          llvm_prefix="$(brew --prefix llvm)"
+          sdk_path="$(xcrun --show-sdk-path)"
+          modules_json="$llvm_prefix/lib/c++/libc++.modules.json"
+          test -f "$modules_json"
+          "$llvm_prefix/bin/clang++" --version
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER="$llvm_prefix/bin/clang++" \
+            -DCMAKE_OSX_SYSROOT="$sdk_path" \
+            -DCMAKE_CXX_STDLIB_MODULES_JSON="$modules_json" \
+            -DCMAKE_CXX_FLAGS="-stdlib=libc++ -nostdinc++ -isystem $llvm_prefix/include/c++/v1" \
+            -DCMAKE_EXE_LINKER_FLAGS="-L$llvm_prefix/lib/c++ -L$llvm_prefix/lib/unwind -lunwind" \
+            -DCMAKE_BUILD_RPATH="$llvm_prefix/lib/c++;$llvm_prefix/lib/unwind" \
+            -DLAM_WARNINGS_AS_ERRORS="${WARNINGS_AS_ERRORS}"
+
+      - name: Build
+        run: cmake --build build --parallel 3
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+
   windows-msvc:
     name: Windows / MSVC / Release
     runs-on: windows-2025

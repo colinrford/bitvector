@@ -187,7 +187,7 @@ bool test_copy_allocator()
   using bv = bitvector<std::uint64_t, alloc>;
 
   for (bool equal : {false, true})
-    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{65}, std::size_t{128}, std::size_t{130}})
       for (bool fail : {false, true})
       {
         assignment_allocation_state state;
@@ -196,7 +196,7 @@ bool test_copy_allocator()
           source.set(1);
           source.set(99);
           bv dest(dest_bits, alloc{&state, 1, 11});
-          dest.set(3);
+          dest.set_all();
           auto* old_data = dest.words().data();
           auto allocations = state.allocations;
           bool needs_allocation = dest.word_count() != source.word_count()
@@ -218,7 +218,7 @@ bool test_copy_allocator()
           if (threw)
           {
             if (dest.size() != dest_bits || dest.words().data() != old_data
-                || dest.count() != 1 || !dest.get(3)
+                || dest.count() != dest_bits
                 || dest.get_allocator().domain != 1
                 || dest.get_allocator().metadata != 11)
               return false;
@@ -231,6 +231,8 @@ bool test_copy_allocator()
                 || dest.get_allocator().metadata != (Propagate ? 22 : 11))
               return false;
             if (state.allocations != allocations + (needs_allocation ? 1u : 0u))
+              return false;
+            if (!needs_allocation && dest.words().data() != old_data)
               return false;
             dest.clear(99);
           }
@@ -253,7 +255,7 @@ bool test_move_allocator()
   static_assert(std::is_nothrow_move_assignable_v<bv> == Propagate);
 
   for (bool equal : {false, true})
-    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{65}, std::size_t{128}, std::size_t{130}})
       for (bool fail : {false, true})
       {
         assignment_allocation_state state;
@@ -263,7 +265,7 @@ bool test_move_allocator()
           source.set(1);
           source.set(99);
           bv dest(dest_bits, alloc{&state, 1, 11});
-          dest.set(3);
+          dest.set_all();
           auto* source_data = source.words().data();
           auto* old_data = dest.words().data();
           auto allocations = state.allocations;
@@ -286,7 +288,7 @@ bool test_move_allocator()
           if (threw)
           {
             if (dest.size() != dest_bits || dest.words().data() != old_data
-                || dest.count() != 1 || !dest.get(3)
+                || dest.count() != dest_bits
                 || dest.get_allocator().domain != 1
                 || dest.get_allocator().metadata != 11)
               return false;
@@ -365,7 +367,7 @@ bool test_pmr_move_assignment()
   using bv = bitvector<std::uint64_t, alloc>;
   static_assert(!std::is_nothrow_move_assignable_v<bv>);
   for (bool equal : {false, true})
-    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+    for (std::size_t dest_bits : {std::size_t{10}, std::size_t{65}, std::size_t{128}, std::size_t{130}})
     {
       auto* resource = equal ? &dest_resource : &source_resource;
       bv source(100, alloc{resource});
@@ -373,6 +375,8 @@ bool test_pmr_move_assignment()
       auto* source_data = source.words().data();
       bv dest(dest_bits, alloc{&dest_resource});
       dest.set_all();
+      auto* old_data = dest.words().data();
+      bool same_words = dest.word_count() == source.word_count();
       dest = std::move(source);
       if (dest.get_allocator().resource() != &dest_resource
           || dest.size() != 100 || dest.count() != 1 || !dest.get(99))
@@ -383,7 +387,8 @@ bool test_pmr_move_assignment()
         if (dest.words().data() != source_data || source.size() != 0 || !source.words().empty())
           return false;
       }
-      else if (source.size() != 100 || source.count() != 1 || !source.get(99))
+      else if (source.size() != 100 || source.count() != 1 || !source.get(99)
+               || (same_words && dest.words().data() != old_data))
         return false;
     }
   return true;
@@ -394,15 +399,19 @@ bool test_pmr_copy_assignment()
   std::pmr::unsynchronized_pool_resource source_resource;
   std::pmr::unsynchronized_pool_resource dest_resource;
   using alloc = std::pmr::polymorphic_allocator<std::uint64_t>;
-  for (std::size_t dest_bits : {std::size_t{10}, std::size_t{130}})
+  for (std::size_t dest_bits : {std::size_t{10}, std::size_t{65}, std::size_t{128}, std::size_t{130}})
   {
     bitvector<std::uint64_t, alloc> source(100, alloc{&source_resource});
     source.set(99);
     bitvector<std::uint64_t, alloc> dest(dest_bits, alloc{&dest_resource});
     dest.set_all();
+    auto* old_data = dest.words().data();
+    bool same_words = dest.word_count() == source.word_count();
     dest = source;
     if (dest.get_allocator().resource() != &dest_resource
         || dest.size() != 100 || dest.count() != 1 || !dest.get(99))
+      return false;
+    if (same_words && dest.words().data() != old_data)
       return false;
     dest.clear(99);
     if (!source.get(99))

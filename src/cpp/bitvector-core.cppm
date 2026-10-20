@@ -88,7 +88,7 @@ public:
   constexpr explicit bitvector(size_type num_bits, Allocator const& alloc = Allocator());
   constexpr bitvector(size_type num_bits, uninitialized_t, Allocator const& alloc = Allocator());
 
-  template<word_source_c<word_type> Range>
+  template<word_source_c<Word> Range>
   constexpr explicit bitvector(Range&& source, Allocator const& alloc = Allocator());
 
   constexpr bitvector();

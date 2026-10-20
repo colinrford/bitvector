@@ -117,7 +117,6 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   windows-msvc:
-    if: false
     name: Windows / MSVC / Release
     runs-on: windows-2025
     # never built with MSVC before; report without failing the workflow until it is green

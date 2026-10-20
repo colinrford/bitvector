@@ -11,19 +11,39 @@ using lam::bitvec::bitvector;
 
 constexpr std::uint64_t N = 100'000'000;
 constexpr std::size_t NUM_THREADS = 8;
-constexpr int ITERATIONS = 3;
+constexpr int ITERATIONS = 10;
 
 template<typename Word = std::uint64_t, typename Allocator = std::allocator<Word>>
 std::vector<Word> sieve_base_primes(Word limit, const Allocator& alloc = Allocator())
 {
-  auto is_composite = lam::bitvec::sieve_of_eratosthenes(limit + 1, alloc);
+  auto is_prime = lam::bitvec::sieve_of_eratosthenes(limit + 1, alloc);
   std::vector<Word> primes;
 
   for (Word p = 2; p <= limit; ++p)
-    if (!is_composite[p])
+    if (is_prime[p])
       primes.push_back(p);
 
   return primes;
+}
+
+// times each iteration separately; prints the count and min/median time
+template<typename F>
+void measure(F&& iteration)
+{
+  std::vector<double> ms;
+  std::uint64_t total_count = 0;
+
+  for (int iter = 0; iter < ITERATIONS; ++iter)
+  {
+    auto start = std::chrono::steady_clock::now();
+    total_count = iteration();
+    auto end = std::chrono::steady_clock::now();
+    ms.push_back(std::chrono::duration<double, std::milli>(end - start).count());
+  }
+
+  std::ranges::sort(ms);
+  std::println("Prime count: {}", total_count);
+  std::println("Time: min {:.2f} ms, median {:.2f} ms\n", ms.front(), ms[ms.size() / 2]);
 }
 
 template<typename Word = std::uint64_t, typename Allocator = std::allocator<Word>>
@@ -60,20 +80,11 @@ void benchmark_sequential()
   auto sqrt_n = static_cast<std::uint64_t>(std::sqrt(static_cast<double>(N))) + 1;
   auto base_primes = sieve_base_primes(sqrt_n);
 
-  auto start = std::chrono::steady_clock::now();
-  std::uint64_t total_count = 0;
-
-  for (int iter = 0; iter < ITERATIONS; ++iter)
-  {
-    total_count = base_primes.size();
+  measure([&] {
+    std::uint64_t total_count = base_primes.size();
     total_count += sieve_segment(sqrt_n + 1, N, base_primes);
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  double avg_ms = std::chrono::duration<double, std::milli>(end - start).count() / ITERATIONS;
-
-  std::println("Prime count: {}", total_count);
-  std::println("Time: {:.2f} ms\n", avg_ms);
+    return total_count;
+  });
 }
 
 // Cache-line aligned count to avoid false sharing
@@ -89,11 +100,7 @@ void benchmark_parallel_std_allocator()
   auto sqrt_n = static_cast<std::uint64_t>(std::sqrt(static_cast<double>(N))) + 1;
   auto base_primes = sieve_base_primes(sqrt_n);
 
-  auto start = std::chrono::steady_clock::now();
-  std::uint64_t total_count = 0;
-
-  for (int iter = 0; iter < ITERATIONS; ++iter)
-  {
+  measure([&] {
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
@@ -109,16 +116,11 @@ void benchmark_parallel_std_allocator()
 
     threads.clear(); // Join all threads
 
-    total_count = base_primes.size();
+    std::uint64_t total_count = base_primes.size();
     for (auto& c : counts)
       total_count += c.value;
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  double avg_ms = std::chrono::duration<double, std::milli>(end - start).count() / ITERATIONS;
-
-  std::println("Prime count: {}", total_count);
-  std::println("Time: {:.2f} ms\n", avg_ms);
+    return total_count;
+  });
 }
 
 void benchmark_parallel_pmr_thread_local()
@@ -135,11 +137,7 @@ void benchmark_parallel_pmr_thread_local()
   for (auto& buf : thread_buffers)
     buf.resize(buffer_size);
 
-  auto start = std::chrono::steady_clock::now();
-  std::uint64_t total_count = 0;
-
-  for (int iter = 0; iter < ITERATIONS; ++iter)
-  {
+  measure([&] {
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
@@ -159,16 +157,11 @@ void benchmark_parallel_pmr_thread_local()
 
     threads.clear(); // Join all threads
 
-    total_count = base_primes.size();
+    std::uint64_t total_count = base_primes.size();
     for (auto& c : counts)
       total_count += c.value;
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  double avg_ms = std::chrono::duration<double, std::milli>(end - start).count() / ITERATIONS;
-
-  std::println("Prime count: {}", total_count);
-  std::println("Time: {:.2f} ms\n", avg_ms);
+    return total_count;
+  });
 }
 
 constexpr std::size_t CHUNK_32KB = 32 * 1024 * 8;
@@ -216,11 +209,7 @@ void benchmark_chunked_std_allocator(const char* chunk_name)
   auto sqrt_n = static_cast<std::uint64_t>(std::sqrt(static_cast<double>(N))) + 1;
   auto base_primes = sieve_base_primes(sqrt_n);
 
-  auto start = std::chrono::steady_clock::now();
-  std::uint64_t total_count = 0;
-
-  for (int iter = 0; iter < ITERATIONS; ++iter)
-  {
+  measure([&] {
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
@@ -237,16 +226,11 @@ void benchmark_chunked_std_allocator(const char* chunk_name)
 
     threads.clear();
 
-    total_count = base_primes.size();
+    std::uint64_t total_count = base_primes.size();
     for (auto& c : counts)
       total_count += c.value;
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  double avg_ms = std::chrono::duration<double, std::milli>(end - start).count() / ITERATIONS;
-
-  std::println("Prime count: {}", total_count);
-  std::println("Time: {:.2f} ms\n", avg_ms);
+    return total_count;
+  });
 }
 
 template<std::size_t CHUNK_BITS>
@@ -265,11 +249,7 @@ void benchmark_chunked_pmr(const char* chunk_name)
   for (auto& buf : thread_buffers)
     buf.resize(buffer_size);
 
-  auto start = std::chrono::steady_clock::now();
-  std::uint64_t total_count = 0;
-
-  for (int iter = 0; iter < ITERATIONS; ++iter)
-  {
+  measure([&] {
     std::vector<std::jthread> threads;
     std::vector<PaddedCount> counts(NUM_THREADS);
 
@@ -289,16 +269,11 @@ void benchmark_chunked_pmr(const char* chunk_name)
 
     threads.clear();
 
-    total_count = base_primes.size();
+    std::uint64_t total_count = base_primes.size();
     for (auto& c : counts)
       total_count += c.value;
-  }
-
-  auto end = std::chrono::steady_clock::now();
-  double avg_ms = std::chrono::duration<double, std::milli>(end - start).count() / ITERATIONS;
-
-  std::println("Prime count: {}", total_count);
-  std::println("Time: {:.2f} ms\n", avg_ms);
+    return total_count;
+  });
 }
 
 int main()

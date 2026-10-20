@@ -39,7 +39,7 @@ constexpr bool test_constexpr_assignment()
 
   if (c.size() != 0)
     return false;
-  if (c.data() != nullptr)
+  if (!c.words().empty())
     return false;
 
   auto& b_self = b;
@@ -57,8 +57,104 @@ constexpr bool test_constexpr_assignment()
 
 static_assert(test_constexpr_assignment());
 
+constexpr bool test_copy_assignment_boundaries()
+{
+  bitvector<> source(100);
+  source.set(1);
+  source.set(99);
+  bitvector<> dest(10);
+  dest.set_all();
+
+  if (&(dest = source) != &dest || dest.size() != 100 || dest.count() != 2
+      || !dest.get(1) || !dest.get(99))
+    return false;
+
+  auto& self = dest;
+  dest = self;
+  if (dest.size() != 100 || dest.count() != 2 || !dest.get(99))
+    return false;
+
+  dest.clear(99);
+  if (!source.get(99))
+    return false;
+
+  // same word count as source: existing storage is reused
+  for (std::size_t bits : {std::size_t{65}, std::size_t{128}})
+  {
+    bitvector<> same(bits);
+    same.set_all();
+    auto const* same_data = same.words().data();
+    same = source;
+    if (same.size() != 100 || same.count() != 2 || !same.get(1)
+        || !same.get(99) || same.words().data() != same_data)
+      return false;
+  }
+
+  bitvector<> empty;
+  dest = empty;
+  if (dest.size() != 0 || !dest.words().empty() || dest.count() != 0)
+    return false;
+  empty = dest;
+  return empty.size() == 0 && empty.words().empty();
+}
+
+static_assert(test_copy_assignment_boundaries());
+
+constexpr bool test_move_assignment_boundaries()
+{
+  bitvector<> source(100);
+  source.set(99);
+  bitvector<> dest(10);
+  dest.set_all();
+  if (&(dest = std::move(source)) != &dest
+      || dest.size() != 100 || dest.count() != 1 || !dest.get(99)
+      || source.size() != 0 || !source.words().empty())
+    return false;
+
+  auto& self = dest;
+  dest = std::move(self);
+  if (dest.size() != 100 || dest.count() != 1 || !dest.get(99))
+    return false;
+
+  // A moved-from object remains assignable.
+  source = std::move(dest);
+  if (source.size() != 100 || !source.get(99)
+      || dest.size() != 0 || !dest.words().empty())
+    return false;
+
+  // same word count as source: std::allocator still takes the buffer
+  for (std::size_t bits : {std::size_t{65}, std::size_t{128}})
+  {
+    bitvector<> same(bits);
+    same.set_all();
+    auto const* source_data = source.words().data();
+    same = std::move(source);
+    if (same.size() != 100 || same.count() != 1 || !same.get(99)
+        || same.words().data() != source_data
+        || source.size() != 0 || !source.words().empty())
+      return false;
+    source = std::move(same);
+  }
+
+  bitvector<> empty;
+  source = std::move(empty);
+  if (source.size() != 0 || !source.words().empty()
+      || empty.size() != 0 || !empty.words().empty())
+    return false;
+  dest = std::move(empty);
+  return dest.size() == 0 && dest.words().empty();
+}
+
+static_assert(test_move_assignment_boundaries());
+
 int main()
 {
+  if (!test_move_assignment_boundaries())
+    return 1;
+
+  if (!test_copy_assignment_boundaries())
+    return 1;
+
   bitvector<> a(100);
   a.set_all();
 
@@ -78,7 +174,7 @@ int main()
   if (c.count() != 100)
     return 1;
 
-  if (b.size() != 0)
+  if (b.size() != 0 || !b.words().empty())
     return 1;
 
   return 0;

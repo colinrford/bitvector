@@ -12,146 +12,145 @@ import :core;
 namespace lam::bitvec
 {
 
+namespace stdr = std::ranges;
+namespace stdv = std::views;
+
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator> operator&(const bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>
+operator&(bitvector<Word, Allocator> const& lhs,
+          bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-  bitvector<Word, Allocator> result(lhs.size(), uninitialized, lhs.get_allocator());
+  bitvector<Word, Allocator> result(lhs.size(),
+                                    uninitialized,
+                                    lhs.get_allocator());
 
-  const auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  auto* res_data = result.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    res_data[i] = lhs_data[i] & rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a & b; }
+                );
 
   return result;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator> operator|(const bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>
+operator|(bitvector<Word, Allocator> const& lhs,
+          bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
+  bitvector<Word, Allocator> result(lhs.size(),
+                                    uninitialized,
+                                    lhs.get_allocator());
 
-  bitvector<Word, Allocator> result(lhs.size(), uninitialized, lhs.get_allocator());
-
-  const auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  auto* res_data = result.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    res_data[i] = lhs_data[i] | rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a | b; }
+                );
 
   return result;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator> operator^(const bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>
+operator^(bitvector<Word, Allocator> const& lhs,
+          bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
+  bitvector<Word, Allocator> result(lhs.size(),
+                                    uninitialized,
+                                    lhs.get_allocator());
 
-  bitvector<Word, Allocator> result(lhs.size(), uninitialized, lhs.get_allocator());
-
-  const auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  auto* res_data = result.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    res_data[i] = lhs_data[i] ^ rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a ^ b; }
+                );
 
   return result;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator> operator~(const bitvector<Word, Allocator>& bv)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>
+operator~(bitvector<Word, Allocator> const& bv)
 {
-  using size_type = typename bitvector<Word, Allocator>::size_type;
+  bitvector<Word, Allocator> result(bv.size(),
+                                    uninitialized,
+                                    bv.get_allocator());
 
-  bitvector<Word, Allocator> result(bv.size(), uninitialized, bv.get_allocator());
+  stdr::transform(bv.words(),
+                  result.m_data,
+                  [](auto word) -> Word { return ~word; }
+                );
 
-  const auto* bv_data = bv.data();
-  auto* res_data = result.data();
-  size_type count = bv.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    res_data[i] = ~bv_data[i];
-
-  size_type remaining = bv.size() % bitvector<Word, Allocator>::bits_per_word;
-  if (remaining > 0)
-    res_data[count - 1] &= (typename bitvector<Word, Allocator>::word_type{1} << remaining) - 1;
+  if (result.m_capacity_words != 0)
+    result.m_data[result.m_capacity_words - 1] &= result.tail_mask();
 
   return result;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator>& operator&=(bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>&
+operator&=(bitvector<Word, Allocator>& lhs,
+           bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
-  auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    lhs_data[i] &= rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a & b; }
+                );
 
   return lhs;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator>& operator|=(bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>&
+operator|=(bitvector<Word, Allocator>& lhs,
+           bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
-  auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    lhs_data[i] |= rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a | b; }
+                );
 
   return lhs;
 }
 
 export
-template<word_c Word = std::uint64_t, word_allocator_c<Word> Allocator>
-constexpr bitvector<Word, Allocator>& operator^=(bitvector<Word, Allocator>& lhs, const bitvector<Word, Allocator>& rhs)
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr bitvector<Word, Allocator>&
+operator^=(bitvector<Word, Allocator>& lhs,
+           bitvector<Word, Allocator> const& rhs)
 {
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
-  auto* lhs_data = lhs.data();
-  const auto* rhs_data = rhs.data();
-  size_type count = lhs.word_count();
-
-  for (size_type i = 0; i < count; ++i)
-    lhs_data[i] ^= rhs_data[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a ^ b; }
+                );
 
   return lhs;
 }

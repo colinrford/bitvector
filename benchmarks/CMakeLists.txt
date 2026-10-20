@@ -4,6 +4,8 @@
 
 bitvector_add_executable(bitvector_benchmark    SOURCE benchmark.cpp)
 bitvector_add_executable(parallel_sieve_benchmark SOURCE parallel_sieve_benchmark.cpp)
+# one sieve per process, for hyperfine / tools/bench.sh
+bitvector_add_executable(sieve_bench SOURCE sieve_bench.cpp)
 
 bitvector_add_executable(bench_compile_custom
   SOURCE          bench_compile_custom.cpp

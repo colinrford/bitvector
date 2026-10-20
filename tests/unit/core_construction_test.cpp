@@ -30,7 +30,7 @@ constexpr bool test_constexpr_construction()
   if (!dst_move.get(1))
     return false;
 
-  if (src_move.size() != 0)
+  if (src_move.size() != 0 || !src_move.words().empty())
     return false;
 
   return true;
@@ -68,7 +68,7 @@ int main()
 
   if (src_move.size() != 0)
     return 1;
-  if (src_move.data() != nullptr)
+  if (!src_move.words().empty())
     return 1;
 
   return 0;

@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   if (sieve != "simple" && sieve != "segmented" && sieve != "atkin")
     return usage();
 
-  std::size_t n = parse(argv[2]);
+  auto n = parse(argv[2]);
   auto reps = argc == 4 ? parse(argv[3]) : std::optional<std::uint64_t>{1};
   if (!n || !reps || *reps == 0)
     return usage();

@@ -9,7 +9,46 @@ import lam.bitvector;
 
 using lam::bitvec::bitvector;
 
-constexpr int iterations = 5;
+// keeps results live so the timed work can't be optimized away
+volatile std::uint64_t sink = 0;
+
+// more repetitions for cheap sizes, fewer for expensive ones
+constexpr int reps_for(std::uint64_t n)
+{
+  if (n <= 1'000'000)
+    return 25;
+  if (n <= 20'000'000)
+    return 11;
+  if (n <= 100'000'000)
+    return 7;
+  return 5;
+}
+
+// time one call; the result is consumed after the clock stops
+template<typename F>
+double time_once(F&& fn)
+{
+  auto start = std::chrono::steady_clock::now();
+  auto result = fn();
+  auto end = std::chrono::steady_clock::now();
+  if constexpr (std::integral<decltype(result)>)
+    sink = sink + result;
+  else
+    sink = sink + result.count();
+  return std::chrono::duration<double, std::milli>(end - start).count();
+}
+
+struct summary
+{
+  double min_ms;
+  double median_ms;
+};
+
+summary summarize(std::vector<double> ms)
+{
+  std::ranges::sort(ms);
+  return {ms.front(), ms[ms.size() / 2]};
+}
 
 template<std::uint64_t N, typename BitSet>
 void run_sieve(BitSet& bv)
@@ -38,14 +77,16 @@ void run_sieve(BitSet& bv)
 template<std::uint64_t N>
 void run_comparison()
 {
-  std::println("--- Benchmarking N = {} ---", N);
+  constexpr int reps = reps_for(N);
+  std::println("--- Benchmarking N = {} ({} runs each) ---", N, reps);
 
+  // lam's sieve sets a bit for each prime
   auto run_custom = []() {
     auto bv = lam::bitvec::sieve_of_eratosthenes(N);
-    // Count primes: (N-2) - composites
-    return (N - 2) - bv.count();
+    return static_cast<std::uint64_t>(bv.count());
   };
 
+  // run_sieve marks composites in the std::bitset
   auto run_std = []() {
     std::bitset<N> bv;
     run_sieve<N>(bv);
@@ -60,29 +101,65 @@ void run_comparison()
   }
   std::println("Count for N={}: {}", N, count);
 
-  auto start_custom = std::chrono::steady_clock::now();
-  for (int i = 0; i < iterations; ++i)
-    [[maybe_unused]] volatile auto v = run_custom();
-  auto end_custom = std::chrono::steady_clock::now();
+  // alternate the two so neither always runs second
+  std::vector<double> custom_ms;
+  std::vector<double> std_ms;
+  for (int i = 0; i < reps; ++i)
+  {
+    custom_ms.push_back(time_once(run_custom));
+    std_ms.push_back(time_once(run_std));
+  }
 
-  auto start_std = std::chrono::steady_clock::now();
-  for (int i = 0; i < iterations; ++i)
-    [[maybe_unused]] volatile auto v = run_std();
-  auto end_std = std::chrono::steady_clock::now();
+  auto custom = summarize(custom_ms);
+  auto stdbs = summarize(std_ms);
 
-  auto dur_custom = std::chrono::duration<double, std::milli>(end_custom - start_custom).count() / iterations;
-  auto dur_std = std::chrono::duration<double, std::milli>(end_std - start_std).count() / iterations;
+  std::println("                 min        median");
+  std::println("lam::bitvector : {:8.3f} ms {:8.3f} ms", custom.min_ms, custom.median_ms);
+  std::println("std::bitset    : {:8.3f} ms {:8.3f} ms", stdbs.min_ms, stdbs.median_ms);
+  std::println("Ratio (min)    : {:.2f}x\n", custom.min_ms / stdbs.min_ms);
+}
 
-  std::println("lam::bitvector : {:.3f} ms", dur_custom);
-  std::println("std::bitset    : {:.3f} ms", dur_std);
-  std::println("Ratio          : {:.2f}x\n", dur_custom / dur_std);
+template<std::uint64_t N>
+void run_seg_bench()
+{
+  constexpr int reps = reps_for(N);
+  std::println("--- Benchmarking N = {} ({} runs each) ---", N, reps);
+
+  auto expected = lam::bitvec::sieve_of_eratosthenes(N).count();
+  if (lam::bitvec::sieve_of_eratosthenes_segmented(N).count() != expected
+      || lam::bitvec::sieve_of_atkin(N).count() != expected)
+  {
+    std::println("ERROR: sieves disagree for N={}", N);
+    return;
+  }
+
+  // alternate the three so none always runs in the same position
+  std::vector<double> simple_ms;
+  std::vector<double> seg_ms;
+  std::vector<double> atkin_ms;
+  for (int i = 0; i < reps; ++i)
+  {
+    simple_ms.push_back(time_once([] { return lam::bitvec::sieve_of_eratosthenes(N); }));
+    seg_ms.push_back(time_once([] { return lam::bitvec::sieve_of_eratosthenes_segmented(N); }));
+    atkin_ms.push_back(time_once([] { return lam::bitvec::sieve_of_atkin(N); }));
+  }
+
+  auto simple = summarize(simple_ms);
+  auto seg = summarize(seg_ms);
+  auto atkin = summarize(atkin_ms);
+
+  std::println("            min          median       vs simple (min)");
+  std::println("Simple:    {:9.2f} ms {:9.2f} ms", simple.min_ms, simple.median_ms);
+  std::println("Segmented: {:9.2f} ms {:9.2f} ms   {:.2f}x", seg.min_ms, seg.median_ms, simple.min_ms / seg.min_ms);
+  std::println("Atkin:     {:9.2f} ms {:9.2f} ms   {:.2f}x\n", atkin.min_ms, atkin.median_ms,
+               simple.min_ms / atkin.min_ms);
 }
 
 int main()
 {
   std::println("lam::bitvector v{} ({}) [{}]", lam::bitvec::config::version_string, lam::bitvec::config::build_type,
                lam::bitvec::config::git_hash);
-  std::println("Benchmarking Sieve of Eratosthenes (Averaging {} runs)\n", iterations);
+  std::println("Benchmarking Sieve of Eratosthenes (min and median of repeated runs)\n");
 
   run_comparison<100'000>();
   run_comparison<262'144>(); // 2^18
@@ -93,29 +170,8 @@ int main()
   run_comparison<15'000'000>();
   run_comparison<20'000'000>();
 
-  std::println("\n--- Segmented Sieve Comparison ---");
-  auto run_seg_bench = []<std::uint64_t N>() {
-    std::println("--- Benchmarking N = {} ---", N);
-
-    auto t1 = std::chrono::steady_clock::now();
-    for (int i = 0; i < 3; ++i)
-      volatile auto b = lam::bitvec::sieve_of_eratosthenes(N);
-    auto t2 = std::chrono::steady_clock::now();
-
-    auto t3 = std::chrono::steady_clock::now();
-    for (int i = 0; i < 3; ++i)
-      volatile auto b = lam::bitvec::sieve_of_eratosthenes_segmented(N);
-    auto t4 = std::chrono::steady_clock::now();
-
-    double ms_simple = std::chrono::duration<double, std::milli>(t2 - t1).count() / 3.0;
-    double ms_seg = std::chrono::duration<double, std::milli>(t4 - t3).count() / 3.0;
-
-    std::println("Simple:    {:.2f} ms", ms_simple);
-    std::println("Segmented: {:.2f} ms", ms_seg);
-    std::println("Speedup:   {:.2f}x\n", ms_simple / ms_seg);
-  };
-
-  run_seg_bench.template operator()<10'000'000>();
-  run_seg_bench.template operator()<100'000'000>();
-  run_seg_bench.template operator()<1'000'000'000>();
+  std::println("\n--- Sieve Comparison: simple, segmented, Atkin ---");
+  run_seg_bench<10'000'000>();
+  run_seg_bench<100'000'000>();
+  run_seg_bench<1'000'000'000>();
 }

@@ -39,6 +39,39 @@ int main()
 {
   std::println("Testing segmented sieve correctness...");
 
+  // Check the prime-flag contract, including small exclusive bounds.
+  for (std::size_t n = 0; n <= 10; ++n)
+  {
+    auto simple = sieve_of_eratosthenes<std::uint32_t>(n);
+    auto segmented = sieve_of_eratosthenes_segmented<std::uint32_t>(n, 3);
+    auto atkin = lam::bitvec::sieve_of_atkin<std::uint32_t>(n);
+    if (simple.size() != n || segmented.size() != n || atkin.size() != n)
+      return 1;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+      bool prime = i == 2 || i == 3 || i == 5 || i == 7;
+      if (simple[i] != prime || segmented[i] != prime || atkin[i] != prime)
+        return 1;
+    }
+  }
+
+  for (std::size_t n : {std::size_t{0}, std::size_t{100001}})
+  {
+    try
+    {
+      auto invalid = sieve_of_eratosthenes_segmented(n, 0);
+      return 1;
+    }
+    catch (std::invalid_argument const&)
+    {}
+  }
+
+  // Force segmentation with a nondefault word type and a partial final segment.
+  auto words32 = sieve_of_eratosthenes_segmented<std::uint32_t>(100003, 127);
+  auto reference32 = sieve_of_eratosthenes<std::uint32_t>(100003);
+  if (!std::ranges::equal(words32.words(), reference32.words()))
+    return 1;
+
   check(100);
   check(1000);
   check(10000);

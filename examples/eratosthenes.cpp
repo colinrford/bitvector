@@ -17,7 +17,7 @@ int main()
   auto count_primes = [](const auto& bv, std::uint64_t limit) {
     if (limit < 2)
       return std::uint64_t{0};
-    return (limit - 2) - bv.count();
+    return static_cast<std::uint64_t>(bv.count());
   };
 
   auto run_sieve = [&]() {
@@ -33,7 +33,7 @@ int main()
       auto bv = lam::bitvec::sieve_of_eratosthenes(N);
       if (N < 2)
         return std::uint64_t{0};
-      return static_cast<std::uint64_t>((N - 2) - bv.count());
+      return static_cast<std::uint64_t>(bv.count());
     };
 
     constexpr auto ct_count = run_sieve_ct(compile_time_size);

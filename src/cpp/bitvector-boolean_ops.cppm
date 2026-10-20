@@ -12,6 +12,7 @@ import :core;
 namespace lam::bitvec
 {
 
+namespace stdr = std::ranges;
 namespace stdv = std::views;
 
 export
@@ -23,16 +24,15 @@ operator&(bitvector<Word, Allocator> const& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
   bitvector<Word, Allocator> result(lhs.size(),
                                     uninitialized,
                                     lhs.get_allocator());
 
-  const auto lhs_words = lhs.words();
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    result.m_data[i] = lhs_words[i] & rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a & b; }
+                );
 
   return result;
 }
@@ -46,17 +46,15 @@ operator|(bitvector<Word, Allocator> const& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
   bitvector<Word, Allocator> result(lhs.size(),
                                     uninitialized,
                                     lhs.get_allocator());
 
-  const auto lhs_words = lhs.words();
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    result.m_data[i] = lhs_words[i] | rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a | b; }
+                );
 
   return result;
 }
@@ -70,17 +68,15 @@ operator^(bitvector<Word, Allocator> const& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
   bitvector<Word, Allocator> result(lhs.size(),
                                     uninitialized,
                                     lhs.get_allocator());
 
-  const auto lhs_words = lhs.words();
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    result.m_data[i] = lhs_words[i] ^ rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  result.m_data,
+                  [](auto a, auto b) -> Word { return a ^ b; }
+                );
 
   return result;
 }
@@ -90,20 +86,17 @@ template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>
 operator~(bitvector<Word, Allocator> const& bv)
 {
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-
   bitvector<Word, Allocator> result(bv.size(),
                                     uninitialized,
                                     bv.get_allocator());
 
-  const auto bv_words = bv.words();
+  stdr::transform(bv.words(),
+                  result.m_data,
+                  [](auto word) -> Word { return ~word; }
+                );
 
-  for (auto i : stdv::iota(size_type{0}, bv.word_count()))
-    result.m_data[i] = ~bv_words[i];
-
-  size_type remaining = bv.size() % bitvector<Word, Allocator>::bits_per_word;
-  if (remaining > 0)
-    result.m_data[bv.word_count() - 1] &= (Word{1} << remaining) - 1;
+  if (result.m_capacity_words != 0)
+    result.m_data[result.m_capacity_words - 1] &= result.tail_mask();
 
   return result;
 }
@@ -117,11 +110,11 @@ operator&=(bitvector<Word, Allocator>& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    lhs.m_data[i] &= rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a & b; }
+                );
 
   return lhs;
 }
@@ -135,11 +128,11 @@ operator|=(bitvector<Word, Allocator>& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    lhs.m_data[i] |= rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a | b; }
+                );
 
   return lhs;
 }
@@ -153,11 +146,11 @@ operator^=(bitvector<Word, Allocator>& lhs,
   if (lhs.size() != rhs.size())
     throw std::invalid_argument("bitvector operands must have same size");
 
-  using size_type = typename bitvector<Word, Allocator>::size_type;
-  const auto rhs_words = rhs.words();
-
-  for (auto i : stdv::iota(size_type{0}, lhs.word_count()))
-    lhs.m_data[i] ^= rhs_words[i];
+  stdr::transform(lhs.words(),
+                  rhs.words(),
+                  lhs.m_data,
+                  [](auto a, auto b) -> Word { return a ^ b; }
+                );
 
   return lhs;
 }

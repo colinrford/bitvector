@@ -14,6 +14,9 @@ import :concepts;
 namespace lam::bitvec
 {
 
+namespace stdr = std::ranges;
+namespace stdv = std::views;
+
 export
 struct uninitialized_t
 {};
@@ -60,12 +63,24 @@ public:
   };
 
 private:
+  using allocator_traits = std::allocator_traits<Allocator>;
+
+  static constexpr bool move_assignment_noexcept =
+    allocator_traits::propagate_on_container_move_assignment::value ||
+    allocator_traits::is_always_equal::value;
+
+  static constexpr bool swap_noexcept =
+    allocator_traits::propagate_on_container_swap::value ||
+    allocator_traits::is_always_equal::value;
+
   [[no_unique_address]] Allocator m_alloc;
   word_type* m_data = nullptr;
   size_type m_num_bits = 0;
   size_type m_capacity_words = 0;
 
-  [[nodiscard]] constexpr size_type words_needed(size_type num_bits) const;
+  [[nodiscard]]
+  constexpr size_type words_needed(size_type num_bits) const noexcept;
+  [[nodiscard]] constexpr word_type tail_mask() const noexcept;
   constexpr void allocate_storage(size_type num_bits, bool init_zeros = true);
   constexpr void deallocate_storage();
 
@@ -84,14 +99,7 @@ public:
 
   constexpr bitvector& operator=(bitvector const& other);
   constexpr bitvector& operator=(bitvector&& other)
-    noexcept(
-      std::allocator_traits<Allocator>
-         ::propagate_on_container_move_assignment
-         ::value ||
-      std::allocator_traits<Allocator>
-         ::is_always_equal
-         ::value
-    );
+    noexcept(move_assignment_noexcept);
 
   [[nodiscard]] constexpr bool get(size_type index) const;
   constexpr bool operator[](size_type index) const;
@@ -101,8 +109,8 @@ public:
   constexpr void toggle(size_type index);
   constexpr void clear(size_type index);
 
-  [[nodiscard]] constexpr size_type length() const;
-  [[nodiscard]] constexpr size_type size() const;
+  [[nodiscard]] constexpr size_type length() const noexcept;
+  [[nodiscard]] constexpr size_type size() const noexcept;
 
   [[nodiscard]] constexpr size_type word_count() const noexcept;
 
@@ -114,7 +122,7 @@ public:
   constexpr void set_all() noexcept;
   constexpr void flip_all() noexcept;
 
-  [[nodiscard]] constexpr std::span<word_type const> words() const
+  [[nodiscard]] constexpr std::span<word_type const> words() const noexcept
   { return {m_data, m_capacity_words}; }
 
   constexpr void print() const;
@@ -147,18 +155,13 @@ public:
   friend constexpr bitvector<W, A>&
   operator^=(bitvector<W, A>& lhs, bitvector<W, A> const& rhs);
 
-  friend void swap(bitvector& a, bitvector& b)
-    noexcept(
-      std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
-      std::allocator_traits<Allocator>::is_always_equal::value
-    )
+  friend constexpr void swap(bitvector& a, bitvector& b)
+    noexcept(swap_noexcept)
   {
-    constexpr bool pocs = std::allocator_traits<Allocator>
-                             ::propagate_on_container_swap
-                             ::value;
-    constexpr bool is_always_equal = std::allocator_traits<Allocator>
-                                        ::is_always_equal
-                                        ::value;
+    constexpr bool pocs = allocator_traits::propagate_on_container_swap
+                                          ::value;
+    constexpr bool is_always_equal = allocator_traits::is_always_equal
+                                                     ::value;
     using std::swap;
 
     if constexpr (pocs)
@@ -211,9 +214,21 @@ constexpr void bitvector<Word, Allocator>::bit_proxy::flip()
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type
-bitvector<Word, Allocator>::words_needed(size_type num_bits) const
+bitvector<Word, Allocator>::words_needed(size_type num_bits) const noexcept
 { return num_bits / bits_per_word + (num_bits % bits_per_word != 0); }
 
+template<word_c Word, word_allocator_c<Word> Allocator>
+constexpr typename bitvector<Word, Allocator>::word_type
+bitvector<Word, Allocator>::tail_mask() const noexcept
+{
+  auto remaining = m_num_bits % bits_per_word;
+
+  return remaining == 0
+    ? std::numeric_limits<word_type>::max()
+    : static_cast<word_type>((word_type{1} << remaining) - 1);
+}
+
+// TODO: make a decision about uninitialized storage
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr void bitvector<Word, Allocator>::allocate_storage(size_type num_bits,
                                                             bool init_zeros)
@@ -225,12 +240,11 @@ constexpr void bitvector<Word, Allocator>::allocate_storage(size_type num_bits,
     return;
   }
   m_capacity_words = words_needed(num_bits);
-  m_data = std::allocator_traits<Allocator>
-              ::allocate(m_alloc, m_capacity_words);
+  m_data = allocator_traits::allocate(m_alloc, m_capacity_words);
 
   if (init_zeros || std::is_constant_evaluated())
     for (size_type i = 0; i < m_capacity_words; ++i)
-      std::allocator_traits<Allocator>::construct(m_alloc, m_data + i, 0);
+      allocator_traits::construct(m_alloc, m_data + i, 0);
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -238,12 +252,7 @@ constexpr void bitvector<Word, Allocator>::deallocate_storage()
 {
   if (m_data)
   {
-    if constexpr (!std::is_trivially_destructible_v<word_type>)
-      for (size_type i = 0; i < m_capacity_words; ++i)
-        std::allocator_traits<Allocator>::destroy(m_alloc, m_data + i);
-    std::allocator_traits<Allocator>::deallocate(m_alloc,
-                                                 m_data,
-                                                 m_capacity_words);
+    allocator_traits::deallocate(m_alloc, m_data, m_capacity_words);
     m_data = nullptr;
     m_capacity_words = 0;
   }
@@ -276,8 +285,8 @@ constexpr bitvector<Word, Allocator>::bitvector(Range&& source,
   m_num_bits = num_words * bits_per_word;
   allocate_storage(m_num_bits, false);
 
-  if (m_data)
-    std::ranges::copy(std::forward<Range>(source), m_data);
+  // problem child, can leak if iterating source throws after allocating
+  stdr::copy(std::forward<Range>(source), m_data);
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -290,13 +299,12 @@ constexpr bitvector<Word, Allocator>::~bitvector()
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>::bitvector(bitvector const& other)
-  : m_alloc(std::allocator_traits<Allocator>
-               ::select_on_container_copy_construction(other.m_alloc)),
+  : m_alloc(allocator_traits
+          ::select_on_container_copy_construction(other.m_alloc)),
     m_num_bits(other.m_num_bits)
 {
   allocate_storage(m_num_bits, false); // don't zero, copy immediately
-  if (m_data)
-    std::copy(other.m_data, other.m_data + m_capacity_words, m_data);
+  stdr::copy(other.words(), m_data);
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -318,9 +326,9 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
   if (this == &other)
     return *this;
 
-  constexpr bool pocca = std::allocator_traits<Allocator>
-                            ::propagate_on_container_copy_assignment
-                            ::value;
+  constexpr bool pocca = allocator_traits
+                       ::propagate_on_container_copy_assignment
+                       ::value;
 
   bool incompatible = false;
   if constexpr (pocca)
@@ -332,8 +340,7 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
     Allocator const& target_alloc = pocca ? other.m_alloc : m_alloc;
     bitvector replacement(other.m_num_bits, uninitialized, target_alloc);
 
-    if (replacement.m_data)
-      std::copy_n(other.m_data, other.m_capacity_words, replacement.m_data);
+    stdr::copy(other.words(), replacement.m_data);
 
     if constexpr (pocca)
     {
@@ -356,8 +363,7 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
     if constexpr (pocca)
       m_alloc = other.m_alloc;
 
-    if (m_data)
-      std::copy_n(other.m_data, other.m_capacity_words, m_data);
+    stdr::copy(other.words(), m_data);
 
     m_num_bits = other.m_num_bits;
   }
@@ -368,23 +374,15 @@ bitvector<Word, Allocator>::operator=(bitvector const& other)
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bitvector<Word, Allocator>&
 bitvector<Word, Allocator>::operator=(bitvector&& other)
-  noexcept(std::allocator_traits<Allocator>
-              ::propagate_on_container_move_assignment
-              ::value ||
-           std::allocator_traits<Allocator>
-              ::is_always_equal
-              ::value
-  )
+  noexcept(move_assignment_noexcept)
 {
   if (this == &other)
     return *this;
 
-  constexpr bool pocma = std::allocator_traits<Allocator>
-                            ::propagate_on_container_move_assignment
-                            ::value;
-  constexpr bool always_equal = std::allocator_traits<Allocator>
-                                   ::is_always_equal
-                                   ::value;
+  constexpr bool pocma = allocator_traits
+                       ::propagate_on_container_move_assignment
+                       ::value;
+  constexpr bool always_equal = allocator_traits::is_always_equal::value;
 
   if constexpr (!pocma && !always_equal)
   {
@@ -394,10 +392,7 @@ bitvector<Word, Allocator>::operator=(bitvector&& other)
       {
         bitvector replacement(other.m_num_bits, uninitialized, m_alloc);
 
-        if (replacement.m_data)
-          std::copy_n(other.m_data,
-                      other.m_capacity_words,
-                      replacement.m_data);
+        stdr::copy(other.words(), replacement.m_data);
 
         using std::swap;
         swap(m_data, replacement.m_data);
@@ -405,8 +400,7 @@ bitvector<Word, Allocator>::operator=(bitvector&& other)
         swap(m_capacity_words, replacement.m_capacity_words);
       } else
       {
-        if (m_data)
-          std::copy_n(other.m_data, other.m_capacity_words, m_data);
+        stdr::copy(other.words(), m_data);
 
         m_num_bits = other.m_num_bits;
       }
@@ -469,12 +463,12 @@ constexpr void bitvector<Word, Allocator>::clear(size_type index)
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type
-bitvector<Word, Allocator>::length() const
+bitvector<Word, Allocator>::length() const noexcept
 { return m_num_bits; }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type
-bitvector<Word, Allocator>::size() const
+bitvector<Word, Allocator>::size() const noexcept
 { return m_num_bits; }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -486,19 +480,21 @@ template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr typename bitvector<Word, Allocator>::size_type
 bitvector<Word, Allocator>::count() const noexcept
 {
-  size_type total = 0;
-  for (size_type i = 0; i < m_capacity_words; ++i)
-    total += static_cast<size_type>(std::popcount(m_data[i]));
-  return total;
+  return stdr::fold_left(words()
+                        | stdv::transform([](word_type word) {
+                          return static_cast<size_type>(std::popcount(word));
+                        }),
+                        size_type{0},
+                        std::plus{}
+                      );
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr bool bitvector<Word, Allocator>::any() const noexcept
 {
-  for (size_type i = 0; i < m_capacity_words; ++i)
-    if (m_data[i] != 0)
-      return true;
-  return false;
+  return stdr::any_of(words(),
+                      [](word_type word) { return word != 0; }
+                    );
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -508,18 +504,14 @@ constexpr bool bitvector<Word, Allocator>::all() const noexcept
     return true;
 
   size_type full_words = m_num_bits / bits_per_word;
-  for (size_type i = 0; i < full_words; ++i)
-    if (m_data[i] != std::numeric_limits<word_type>::max())
-      return false;
+  constexpr auto is_full = [](word_type word) -> bool {
+                              return word == std::numeric_limits<word_type>
+                                                ::max();
+                            };
+  if (!stdr::all_of(words().first(full_words), is_full))
+    return false;
 
-  size_type remaining_bits = m_num_bits % bits_per_word;
-  if (remaining_bits > 0)
-  {
-    word_type mask = (word_type{1} << remaining_bits) - 1;
-    if ((m_data[full_words] & mask) != mask)
-      return false;
-  }
-  return true;
+  return (m_data[m_capacity_words - 1] & tail_mask()) == tail_mask();
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
@@ -528,33 +520,26 @@ constexpr bool bitvector<Word, Allocator>::none() const noexcept
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr void bitvector<Word, Allocator>::reset() noexcept
-{
-  for (size_type i = 0; i < m_capacity_words; ++i)
-    m_data[i] = 0;
-}
+{ stdr::fill(std::span<word_type>{m_data, m_capacity_words}, word_type{0}); }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr void bitvector<Word, Allocator>::set_all() noexcept
 {
-  for (size_type i = 0; i < m_capacity_words; ++i)
-    m_data[i] = std::numeric_limits<word_type>::max();
+  stdr::fill(std::span<word_type>{m_data, m_capacity_words},
+             std::numeric_limits<word_type>::max()
+           );
 
-  // Mask unused bits in the last word
-  size_type remaining = m_num_bits % bits_per_word;
-  if (remaining > 0)
-    m_data[m_capacity_words - 1] &= (word_type{1} << remaining) - 1;
+  if (m_capacity_words != 0)
+    m_data[m_capacity_words - 1] &= tail_mask();
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
 constexpr void bitvector<Word, Allocator>::flip_all() noexcept
 {
-  for (size_type i = 0; i < m_capacity_words; ++i)
-    m_data[i] = ~m_data[i];
+  stdr::transform(words(), m_data, std::bit_not<word_type>{});
 
-  // Mask unused bits in the last word
-  size_type remaining = m_num_bits % bits_per_word;
-  if (remaining > 0)
-    m_data[m_capacity_words - 1] &= (word_type{1} << remaining) - 1;
+  if (m_capacity_words != 0)
+    m_data[m_capacity_words - 1] &= tail_mask();
 }
 
 template<word_c Word, word_allocator_c<Word> Allocator>
